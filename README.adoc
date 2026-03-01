@@ -1,0 +1,186 @@
+= Typell — PanLL's Verification Kernel
+Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+:toc:
+:license: PMPL-1.0-or-later
+
+// SPDX-License-Identifier: PMPL-1.0-or-later
+
+[TIP]
+====
+**AI-Assisted Install:** Just tell any AI assistant: +
+`Set up Typell from https://github.com/hyperpolymath/typell` +
+The AI reads this repo, asks you a few questions, and handles everything. See <<ai-install,details below>>.
+====
+
+== What is Typell?
+
+Typell is the **type-theoretic verification engine** that powers
+https://github.com/hyperpolymath/panll[PanLL]'s neurosymbolic intelligence.
+
+It provides the "best of the best" type system coverage for formally verified
+database queries:
+
+* **Dependent types** — types that depend on values (Pi, Sigma)
+* **Linear types** — resources used exactly once (no data leaks, no double-reads)
+* **Session types** — protocol safety (connections always closed, transactions atomic)
+* **Quantitative Type Theory** — resource quantity tracking (rate limits, cost analysis)
+* **Effect systems** — explicit side effect tracking (read/write/memory)
+* **Modal types** — contextual access control (transaction-scoped data)
+* **Proof-carrying code** — cryptographic proof certificates attached to queries
+
+=== What Typell Is NOT
+
+* **NOT a standalone IDE** — it is a verification engine consumed by PanLL and other tools
+* **NOT a pane in PanLL** — it is the intelligence _behind_ all three panes
+* **NOT a database** — it validates queries, it does not store data
+* **NOT a theorem prover** — it delegates complex proofs to https://github.com/hyperpolymath/echidna[Echidna]
+
+=== The LLVM Analogy
+
+Typell is to PanLL what LLVM is to Clang — the compiler infrastructure that any
+frontend can consume. PanLL is the primary consumer (the full eNASAID experience).
+VS Code extensions, CLI tools, and CI/CD pipelines are secondary consumers.
+
+== Architecture
+
+----
+┌─────────────────────────────────────────────┐
+│  PanLL (Development Environment)            │
+│  ├─ Pane-L ← constraints from Typell        │
+│  ├─ Pane-N ← reasoning from Typell          │
+│  └─ Pane-W ← validated results from Typell  │
+└──────────────┬──────────────────────────────┘
+               │ Verification Protocol (JSON-RPC)
+┌──────────────┴──────────────────────────────┐
+│  Typell (Verification Kernel)                │
+│  ├─ Type Checker (bidirectional)             │
+│  ├─ Proof Engine (gen/verify/cache/cert)     │
+│  ├─ Effect Tracker                           │
+│  ├─ Session Protocol Manager                 │
+│  └─ Language Backends                        │
+│     ├─ VQL-dt++ (VeriSimDB)                  │
+│     ├─ GQL-dt++ (LithoGlyph)                │
+│     └─ KQL-dt++ (QuandleDB)                 │
+└─────────────────────────────────────────────┘
+       ↑              ↑             ↑
+    VS Code         CLI/CI       Databases
+   extension       pipelines    (direct use)
+----
+
+== Language Backends
+
+[cols="1,1,1,2"]
+|===
+|Backend |Database |Status |Strategy
+
+|VQL-dt++
+|VeriSimDB
+|Port from ReScript
+|8-modality queries, cross-modal proofs, hexad types
+
+|GQL-dt++
+|LithoGlyph
+|Bridge (Lean 4)
+|Knowledge graphs, RATIONALE clause, refinement types
+
+|KQL-dt++
+|QuandleDB
+|Design from scratch
+|Category-theoretic schema, equality saturation, HoTT
+|===
+
+== Technology
+
+[cols="1,1,2"]
+|===
+|Layer |Technology |Rationale
+
+|Formal Specs
+|Idris2 (`src/abi/`)
+|Dependent types prove type system soundness. Zero believe_me.
+
+|Kernel
+|Rust (`src/kernel/`)
+|Performance, safety, Tauri compatibility (PanLL backend).
+
+|FFI
+|Zig (`ffi/zig/`)
+|C ABI compatibility per hyperpolymath standard.
+
+|Protocol
+|JSON-RPC
+|Language-agnostic. Any consumer can talk to Typell.
+|===
+
+== Status
+
+**Phase 0: Vision capture and repo scaffolding** — complete.
+
+See `docs/design/DESIGN-2026-03-01-typell-vision.md` for the full design vision.
+See `.machine_readable/STATE.a2ml` for current project state.
+
+== ABI/FFI Standards (Hyperpolymath Universal Standard)
+
+* **ABI** -> **Idris2** (`src/abi/*.idr`) — type definitions with dependent type proofs
+* **FFI** -> **Zig** (`ffi/zig/src/*.zig`) — C-compatible function implementations
+* **Generated C Headers** -> Auto-generated from Idris2 ABI (`generated/abi/*.h`)
+
+See `ABI-FFI-README.md` for complete documentation.
+
+== AI Gatekeeper Protocol (MANDATORY)
+
+* **File:** `0-AI-MANIFEST.a2ml` (read this FIRST)
+* **Purpose:** Universal entry point for ALL AI agents
+* **Key invariant:** Typell serves PanLL — never competes
+
+== Directory Structure
+
+----
+typell/
+├── 0-AI-MANIFEST.a2ml            # AI manifest (start here)
+├── spec/                          # Formal specifications
+│   ├── protocol/                  # Verification Protocol spec
+│   ├── type-system/               # Type system specs
+│   └── proof/                     # Proof system specs
+├── src/
+│   ├── abi/                       # Idris2 formal specs
+│   ├── kernel/                    # Rust verification kernel
+│   │   ├── checker/               # Bidirectional type checker
+│   │   ├── proof/                 # Proof engine
+│   │   ├── effects/               # Effect tracker
+│   │   ├── session/               # Session protocol manager
+│   │   └── protocol/              # JSON-RPC server
+│   └── backends/                  # Language backends
+│       ├── vql/                   # VQL-dt++ (VeriSimDB)
+│       ├── gql/                   # GQL-dt++ (LithoGlyph)
+│       └── kql/                   # KQL-dt++ (QuandleDB)
+├── ffi/zig/                       # Zig FFI implementation
+├── generated/abi/                 # Auto-generated C headers
+├── integrations/                  # Consumer integrations
+│   ├── panll/                     # PanLL (primary)
+│   ├── vscode/                    # VS Code extension
+│   ├── cli/                       # Command-line interface
+│   └── ci/                        # CI/CD plugins
+├── docs/design/                   # Design documents
+├── tests/                         # Test suite
+├── container/                     # Stapeln container ecosystem
+└── .machine_readable/             # Machine-readable metadata
+----
+
+[[ai-install]]
+== AI-Assisted Installation
+
+**You don't need to read this README to get started.** Just say this to any AI:
+
+[source,text]
+----
+Set up Typell from https://github.com/hyperpolymath/typell
+----
+
+The normal installation instructions remain below for anyone who prefers manual setup.
+
+== License
+
+PMPL-1.0-or-later
+
+Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>

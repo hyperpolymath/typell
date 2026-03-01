@@ -1,0 +1,221 @@
+# SPDX-License-Identifier: PMPL-1.0-or-later
+# Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
+
+# STOP - CRITICAL READING REQUIRED
+
+**THIS FILE MUST BE READ FIRST BY ALL AI AGENTS**
+
+## WHAT IS THIS?
+
+This is the AI manifest for **Typell** — PanLL's verification kernel.
+
+Typell is the type-theoretic verification engine that powers PanLL's neurosymbolic
+intelligence. It is NOT a standalone IDE. It is NOT a pane. It is the substrate
+that makes PanLL's panes intelligent — the formal verification backbone for
+dependent types, linear types, session types, quantitative type theory (QTT),
+proof-carrying code, and effect systems across all hyperpolymath query languages.
+
+**Identity:** Typell is to PanLL what LLVM is to Clang — the compiler
+infrastructure that any frontend can consume. PanLL is the primary consumer.
+VS Code extensions, CLI tools, and CI/CD pipelines are secondary consumers.
+
+**Scope:** Typell provides the verification protocol and engine for:
+- VQL-dt++ (VeriSimDB query language)
+- GQL-dt++ (LithoGlyph query language)
+- KQL-dt++ (QuandleDB query language)
+- Any future dependently typed query language in the ecosystem
+
+## CRITICAL RELATIONSHIP: PanLL
+
+Typell exists TO SERVE PanLL. It must never compete with or hijack PanLL.
+
+- Typell IS PanLL's Pane-N reasoning engine (proof dispatch, type inference)
+- Typell IS the formal backing for PanLL's Pane-L constraints
+- PanLL can function WITHOUT Typell (graceful degradation)
+- Typell can function WITHOUT PanLL (standalone verification server)
+- They compose naturally because Typell IS PanLL's backend intelligence
+
+## CANONICAL LOCATIONS (UNIVERSAL RULE)
+
+### Machine-Readable Metadata: `.machine_readable/` ONLY
+
+These a2ml files MUST exist in `.machine_readable/` directory ONLY:
+1. **STATE.a2ml** - Project state, progress, blockers
+2. **META.a2ml** - Architecture decisions, governance
+3. **ECOSYSTEM.a2ml** - Position in ecosystem, relationships
+4. **AGENTIC.a2ml** - AI agent interaction patterns
+5. **NEUROSYM.a2ml** - Neurosymbolic integration config
+6. **PLAYBOOK.a2ml** - Operational runbook
+
+**CRITICAL:** If ANY of these files exist in the root directory, this is an ERROR.
+
+### Source Code Layout
+
+```
+typell/
+├── 0-AI-MANIFEST.a2ml            # THIS FILE (start here)
+├── README.adoc                    # Project overview
+├── TOPOLOGY.md                    # Architecture diagram + dashboard
+├── ROADMAP.adoc                   # Development roadmap
+│
+├── spec/                          # Formal specifications
+│   ├── protocol/                  # Verification Protocol spec (JSON-RPC)
+│   │   └── TYPELL-PROTOCOL.adoc   # Protocol specification document
+│   ├── type-system/               # Type system formal spec
+│   │   ├── dependent.adoc         # Dependent types (Pi, Sigma)
+│   │   ├── linear.adoc            # Linear types (use-exactly-once)
+│   │   ├── session.adoc           # Session types (protocol safety)
+│   │   ├── qtt.adoc               # Quantitative Type Theory
+│   │   ├── effects.adoc           # Effect system spec
+│   │   └── modal.adoc             # Modal types (contextual access)
+│   └── proof/                     # Proof system formal spec
+│       ├── generation.adoc        # Automated proof generation
+│       ├── verification.adoc      # Proof verification
+│       ├── certificates.adoc      # Proof-carrying code / certificates
+│       └── composition.adoc       # Multi-proof composition
+│
+├── src/                           # Implementation
+│   ├── abi/                       # Idris2 ABI definitions (formal specs)
+│   │   ├── Types.idr              # Core type representations
+│   │   ├── Checker.idr            # Type checker correctness proofs
+│   │   ├── Linear.idr             # Linear type proofs
+│   │   ├── Session.idr            # Session type proofs
+│   │   ├── QTT.idr                # Quantitative type proofs
+│   │   ├── Effects.idr            # Effect system proofs
+│   │   └── Protocol.idr           # Verification protocol proofs
+│   ├── kernel/                    # Rust verification kernel
+│   │   ├── checker/               # Bidirectional type checker
+│   │   ├── proof/                 # Proof engine (gen, verify, cache)
+│   │   ├── effects/               # Effect tracker
+│   │   ├── session/               # Session protocol manager
+│   │   └── protocol/              # JSON-RPC verification protocol server
+│   └── backends/                  # Language-specific backends
+│       ├── vql/                   # VQL-dt++ backend (VeriSimDB)
+│       ├── gql/                   # GQL-dt++ backend (LithoGlyph)
+│       └── kql/                   # KQL-dt++ backend (QuandleDB)
+│
+├── ffi/zig/                       # Zig FFI implementation
+│   ├── build.zig
+│   └── src/
+│
+├── generated/abi/                 # Auto-generated C headers
+│
+├── integrations/                  # Consumer integrations
+│   ├── panll/                     # PanLL integration (primary)
+│   ├── vscode/                    # VS Code extension
+│   ├── cli/                       # Command-line interface
+│   └── ci/                        # CI/CD plugins (GitHub Actions, etc.)
+│
+├── docs/                          # Documentation
+│   ├── design/                    # Design documents (dated, per session)
+│   ├── theory/                    # Type theory background
+│   ├── practice/                  # Practical guides
+│   └── maintenance/               # Maintenance docs
+│
+├── tests/                         # Test suite
+├── container/                     # Stapeln container ecosystem
+│
+└── .machine_readable/             # ALL machine-readable content
+    ├── STATE.a2ml
+    ├── META.a2ml
+    ├── ECOSYSTEM.a2ml
+    ├── AGENTIC.a2ml
+    ├── NEUROSYM.a2ml
+    ├── PLAYBOOK.a2ml
+    ├── anchors/
+    ├── policies/
+    ├── bot_directives/
+    └── contractiles/
+```
+
+### Anchor File: `.machine_readable/anchors/ANCHOR.a2ml` ONLY
+
+Canonical authority and semantic-boundary declaration MUST exist at:
+
+` .machine_readable/anchors/ANCHOR.a2ml `
+
+Do not place `ANCHOR.a2ml` at repository root.
+
+### Maintenance Policies: `.machine_readable/policies/` ONLY
+
+Canonical maintenance/governance files MUST exist under:
+
+` .machine_readable/policies/ `
+
+### Bot Directives: `.machine_readable/bot_directives/` ONLY
+
+Bot-specific instructions for automated agents.
+
+### Contractiles: `.machine_readable/contractiles/` ONLY
+
+Policy enforcement contracts (k9, dust, lust, must, trust).
+
+### Agent Instructions
+
+- `.claude/CLAUDE.md` - Claude-specific patterns (if exists)
+- `0-AI-MANIFEST.a2ml` - THIS FILE (universal entry point)
+
+## CORE INVARIANTS
+
+1. **Typell serves PanLL** — Never compete with or duplicate PanLL's concerns
+2. **No state file duplication** — Root must NOT contain STATE.a2ml, META.a2ml, etc.
+3. **Single source of truth** — `.machine_readable/` is authoritative
+4. **Protocol-first design** — The verification protocol is the primary interface
+5. **Idris2 for ABI** — All formal type system specs live in Idris2
+6. **Rust for kernel** — Implementation in Rust (Tauri-compatible, PanLL's backend)
+7. **Zig for FFI** — C-compatible FFI bridge per hyperpolymath standard
+8. **License consistency** — All code PMPL-1.0-or-later
+9. **Author attribution** — Always "Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>"
+10. **No believe_me** — Zero uses of believe_me, assert_total, assert_smaller in Idris2
+11. **Container images** — Chainguard base, Podman, Containerfile
+12. **Language policy** — Rust + Idris2 + Zig. No TypeScript, no Python, no Go.
+
+## SESSION STARTUP CHECKLIST
+
+- Read THIS file (0-AI-MANIFEST.a2ml) first
+- Understand: Typell IS PanLL's verification kernel, not a competing tool
+- Check canonical location: `.machine_readable/`
+- Know the invariants (no believe_me, protocol-first, serves PanLL)
+- Read `.machine_readable/policies/MAINTENANCE-AXES.a2ml` for axis ordering
+- Read `.machine_readable/STATE.a2ml` for current status
+- Read `.machine_readable/ECOSYSTEM.a2ml` for PanLL relationship
+
+## LIFECYCLE HOOKS
+
+### on-enter (Session Start)
+
+When starting a new session:
+
+1. Read and acknowledge this manifest
+2. Log session start (optional)
+3. Read `.machine_readable/STATE.a2ml`
+4. Check for blockers
+5. State understanding of canonical locations
+6. State understanding of PanLL relationship
+
+### on-exit (Session End)
+
+When ending a session:
+
+1. Update `.machine_readable/STATE.a2ml` if changes made
+2. Log session end (optional)
+3. Document new blockers
+4. Summarize outcomes
+5. Note any implications for PanLL integration
+
+## ATTESTATION PROOF
+
+After reading this file, demonstrate understanding by stating:
+
+**"I have read the Typell AI manifest. Typell is PanLL's verification kernel,
+not a standalone IDE. All machine-readable content is in `.machine_readable/`
+ONLY. The verification protocol is the primary interface. Idris2 provides
+formal specs, Rust implements the kernel, Zig provides FFI."**
+
+## META
+
+- **Format Version:** 1.0.0
+- **Created:** 2026-03-01
+- **Maintained By:** hyperpolymath
+- **License:** PMPL-1.0-or-later
+- **Protocol:** https://github.com/hyperpolymath/0-ai-gatekeeper-protocol

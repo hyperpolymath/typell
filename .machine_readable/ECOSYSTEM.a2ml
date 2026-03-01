@@ -1,0 +1,86 @@
+# SPDX-License-Identifier: PMPL-1.0-or-later
+# Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
+#
+# ECOSYSTEM.a2ml — Typell ecosystem position
+# Relationships, dependencies, integration points.
+
+[metadata]
+version = "0.1.0"
+last-updated = "2026-03-01"
+
+[project]
+name = "Typell"
+purpose = "PanLL's verification kernel — type-theoretic engine for dependently typed, linearly typed, session-typed, quantitatively typed query languages with proof-carrying code and effect systems."
+role = "verification-kernel"
+
+[position-in-ecosystem]
+tier = "infrastructure"
+analogy = "Typell is to PanLL what LLVM is to Clang — the compiler infrastructure that any frontend can consume."
+
+[architectural-identity]
+description = """
+Typell is NOT a standalone IDE. It is NOT a pane. It is the substrate that
+makes PanLL's panes intelligent. It provides the formal verification backbone
+that PanLL's Pane-N (neural reasoning) and Pane-L (symbolic constraints)
+depend on for their intelligence.
+
+Typell exposes a Verification Protocol (JSON-RPC) that any consumer can use:
+- PanLL (primary consumer — full eNASAID experience)
+- VS Code extensions (secondary — type feedback in editor)
+- CLI tools (secondary — query validation at terminal)
+- CI/CD pipelines (secondary — automated proof checking)
+- Databases directly (secondary — query validation before execution)
+"""
+
+[related-projects]
+projects = [
+  { name = "panll", relationship = "primary-consumer", notes = "Typell IS PanLL's verification backend. Pane-N reasoning + Pane-L constraints." },
+  { name = "verisimdb", relationship = "language-source", notes = "VQL-dt bidirectional type checker (ReScript) to be ported/integrated. VQL-dt++ is the extended version." },
+  { name = "lithoglyph", relationship = "language-source", notes = "GQL-dt (Lean 4) production-ready. GQL-dt++ extends with linear/session/QTT types." },
+  { name = "quandledb", relationship = "language-source", notes = "KQL-dt++ to be designed from QuandleDB category-theoretic research. Not yet started." },
+  { name = "echidna", relationship = "proof-dispatch", notes = "Multi-solver theorem prover. Typell delegates complex proofs to Echidna." },
+  { name = "eclexia", relationship = "formal-language", notes = "Formal constraint expression language. Could provide Pane-L constraint syntax." },
+  { name = "hypatia", relationship = "ci-consumer", notes = "Neurosymbolic CI/CD intelligence. Could consume Typell's proof verification." },
+  { name = "gitbot-fleet", relationship = "automation-consumer", notes = "Bot orchestration. Echidnabot could use Typell for formal verification checks." },
+  { name = "proven", relationship = "sibling-verification", notes = "BGP/crypto formal verification. Shares Idris2 ABI/FFI standard. Different domain." },
+  { name = "idaptik-level-architect", relationship = "potential-consumer", notes = "14 Idris2 modules with cross-domain proofs. Could consume Typell for level validation." },
+]
+
+[integration-points]
+integrations = [
+  { system = "panll", direction = "inbound", protocol = "json-rpc", notes = "PanLL sends queries/constraints, Typell returns types/proofs/effects" },
+  { system = "verisimdb", direction = "outbound", protocol = "json-rpc", notes = "Typell validates VQL-dt++ queries before VeriSimDB execution" },
+  { system = "lithoglyph", direction = "outbound", protocol = "json-rpc", notes = "Typell validates GQL-dt++ queries before LithoGlyph execution" },
+  { system = "quandledb", direction = "outbound", protocol = "json-rpc", notes = "Typell validates KQL-dt++ queries before QuandleDB execution" },
+  { system = "echidna", direction = "outbound", protocol = "grpc", notes = "Typell delegates complex proofs to Echidna's multi-solver dispatch" },
+  { system = "vscode", direction = "inbound", protocol = "lsp-like", notes = "VS Code extension sends editor state, Typell returns diagnostics/completions" },
+  { system = "ci-cd", direction = "inbound", protocol = "cli", notes = "CI pipelines invoke Typell CLI for automated proof checking" },
+]
+
+[panll-module-mapping]
+pane-l = "Typell provides formal constraint validation, proof obligation generation, and type declarations for Pane-L's symbolic mass."
+pane-n = "Typell IS Pane-N's reasoning engine — bidirectional type checking, proof dispatch, effect inference, session protocol verification."
+pane-w = "Typell provides ProvedResult types with proof certificates that flow to Pane-W as validated output."
+barycentre = "Typell is the gravitational force — the formal verification that keeps Human (Pane-L constraints) and Machine (Pane-N inference) in co-orbit around the shared task."
+
+[type-system-coverage]
+description = "Ultimate type-system coverage — the best of the best for strictness."
+systems = [
+  { name = "Dependent Types", purpose = "Types that depend on values. Pi and Sigma types. Schema-aware queries, precise result specifications.", status = "design" },
+  { name = "Linear Types", purpose = "Resources used exactly once. No duplicate reads/writes, no data leaks, transaction safety.", status = "design" },
+  { name = "Session Types", purpose = "Protocol safety. Connection lifecycle (open/query/close), transaction atomicity.", status = "design" },
+  { name = "Quantitative Type Theory (QTT)", purpose = "Track resource usage quantities. Rate limiting, cost analysis, resource accounting.", status = "design" },
+  { name = "Effect Systems", purpose = "Explicit side effect tracking. Read/write/memory effects declared and verified.", status = "design" },
+  { name = "Modal Types", purpose = "Contextual access control. Data available only within specific scopes (transactions, security levels).", status = "design" },
+  { name = "Proof-Carrying Code", purpose = "Cryptographic proof certificates attached to queries. Zero-trust verification.", status = "design" },
+  { name = "Affine Types", purpose = "Resources used at most once (relaxation of linear). Graceful resource cleanup.", status = "research" },
+  { name = "Substructural Types", purpose = "Unified framework for linear, affine, relevant type disciplines.", status = "research" },
+]
+
+[future-directions]
+research = [
+  "HoTT (Homotopy Type Theory) integration for query equivalence proofs",
+  "Equality saturation (egglog) for KQL-dt++ optimisation",
+  "Category-theoretic data model (Spivak CQL) for schema migrations",
+  "Proof-carrying federation — zero-trust distributed query verification",
+]

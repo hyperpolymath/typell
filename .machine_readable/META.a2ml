@@ -1,0 +1,84 @@
+# SPDX-License-Identifier: PMPL-1.0-or-later
+# Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
+#
+# META.a2ml — Project meta-level information
+# Architecture decisions, design rationale, governance.
+
+[metadata]
+version = "0.1.0"
+last-updated = "2026-03-01"
+
+[project-info]
+type = "library"
+languages = ["rust", "idris2", "zig"]
+license = "PMPL-1.0-or-later"
+author = "Jonathan D.A. Jewell (hyperpolymath)"
+
+[architecture-decisions]
+adrs = [
+  { id = "ADR-001", title = "Typell is PanLL's verification kernel, not a separate IDE", status = "accepted", date = "2026-03-01", rationale = "Building a separate IDE would create two competing tools that both collapse. Typell is the type-theory engine that PanLL consumes via a verification protocol. This makes them one system with separable layers, like LLVM and Clang." },
+  { id = "ADR-002", title = "Separate repo, not inside PanLL", status = "accepted", date = "2026-03-01", rationale = "A separate repo allows independent development cadence and makes Typell consumable by VS Code, CLI, and CI without PanLL dependency. PanLL remains priority; Typell must never hijack PanLL's development." },
+  { id = "ADR-003", title = "Verification Protocol (JSON-RPC) as primary interface", status = "accepted", date = "2026-03-01", rationale = "Protocol-first design ensures any consumer (PanLL, VS Code, CLI, CI/CD, databases) can use Typell without coupling to its internals. Similar to LSP but for formal verification." },
+  { id = "ADR-004", title = "Rust for kernel implementation", status = "accepted", date = "2026-03-01", rationale = "PanLL uses Tauri (Rust backend). Typell in Rust can be compiled as a Tauri plugin or standalone server. Performance-critical type checking benefits from Rust. Aligns with hyperpolymath language policy." },
+  { id = "ADR-005", title = "Idris2 for formal type system specifications (ABI)", status = "accepted", date = "2026-03-01", rationale = "Per hyperpolymath ABI/FFI standard. Idris2's dependent types prove interface correctness at compile time. Type system properties (soundness, completeness, decidability) can be formally verified." },
+  { id = "ADR-006", title = "Port VQL-dt from ReScript to Rust kernel, not rewrite", status = "proposed", date = "2026-03-01", rationale = "VQL-dt bidirectional type checker (250+ lines ReScript) is working. Port the logic to Rust rather than redesigning. Extend with linear/session/QTT/effects during port." },
+  { id = "ADR-007", title = "Integrate GQL-dt Lean 4 via protocol bridge, not port", status = "proposed", date = "2026-03-01", rationale = "GQL-dt is production-ready in Lean 4 with Zig FFI. Rather than porting to Rust, bridge it via the verification protocol. Lean 4's type system is already powerful." },
+  { id = "ADR-008", title = "Design KQL-dt++ fresh with category-theoretic foundation", status = "proposed", date = "2026-03-01", rationale = "KQL has no implementation yet. QuandleDB research suggests category-theoretic data model (Spivak CQL) + equality saturation (egglog). Design from scratch within Typell." },
+  { id = "ADR-009", title = "Proof delegation to Echidna for complex proofs", status = "proposed", date = "2026-03-01", rationale = "Typell handles routine type checking and simple proof generation. Complex proofs (SMT solving, theorem proving) delegated to Echidna's multi-solver dispatch (Z3, CVC5, E)." },
+  { id = "ADR-010", title = "Zero believe_me policy — all Idris2 proofs must be genuine", status = "accepted", date = "2026-03-01", rationale = "believe_me undermines the entire verification story. If the verification kernel has holes, nothing it verifies is trustworthy. Hard ban from day one." },
+]
+
+[development-practices]
+build-tool = "just"
+container-runtime = "podman"
+ci-platform = "github-actions"
+package-manager = "cargo"
+
+[maintenance-axes]
+scoping-first = true
+execution-order = "axis-1 > axis-2 > axis-3"
+axis-1 = "must > intend > like"
+axis-2 = "corrective > adaptive > perfective"
+axis-3 = "systems > compliance > effects"
+
+[scoping]
+sources = "README, roadmap, status docs, maintenance checklist, CI/security docs"
+marker-scan = "TODO/FIXME/XXX/HACK/STUB/PARTIAL"
+idris-unsound-scan = "believe_me/assert_total/assert_smaller"
+
+[design-rationale]
+core-insight = """
+The user's instinct to 'just make PanLL and Typell as one' is architecturally
+correct. The solution is layered design: Typell IS PanLL, implemented as a
+separable verification kernel. They are one system with two layers:
+
+  Layer 1 (Typell): Type theory engine — checker, prover, effect tracker, protocol
+  Layer 2 (PanLL): Development environment — UI, Binary Star co-orbit, governance
+
+This avoids the 'two tools collapsing' risk because they are not competing.
+Typell cannot exist without PanLL's vision. PanLL cannot reach its potential
+without Typell's intelligence. They are literally the same project, just
+with a clean API boundary between layers.
+"""
+
+ultimate-goal = """
+The 'best of the best' for type system strictness — a verification kernel
+that provides:
+
+1. Dependent types (Pi, Sigma) — types that depend on values
+2. Linear types — resources used exactly once
+3. Session types — protocol safety for connections/transactions
+4. Quantitative Type Theory — resource quantity tracking
+5. Effect systems — explicit side effect declaration and verification
+6. Modal types — contextual access control
+7. Proof-carrying code — cryptographic proof certificates
+8. Affine types — resources used at most once
+9. Substructural types — unified framework
+
+Not as a theoretical exercise, but with practical tooling:
+- IDE feedback (autocompletion, real-time type annotations, proof suggestions)
+- Proof assistant integration (Echidna dispatch)
+- Query refactoring (type-safe rewrites)
+- Drift dashboard (proof health monitoring)
+- CI/CD integration (automated proof verification)
+"""

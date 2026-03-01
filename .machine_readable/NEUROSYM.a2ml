@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: PMPL-1.0-or-later
+# Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
+#
+# NEUROSYM.a2ml — Neurosymbolic integration metadata
+# Typell's neurosymbolic architecture for verification.
+
+[metadata]
+version = "0.1.0"
+last-updated = "2026-03-01"
+
+[hypatia-config]
+scan-enabled = true
+scan-depth = "deep"
+report-format = "logtalk"
+
+[symbolic-rules]
+rules = [
+  { name = "no-believe-me", pattern = "believe_me", severity = "critical", language = "idris2" },
+  { name = "no-assert-total", pattern = "assert_total", severity = "critical", language = "idris2" },
+  { name = "no-assert-smaller", pattern = "assert_smaller", severity = "critical", language = "idris2" },
+  { name = "no-unsafe-rust", pattern = "unsafe", severity = "warning", language = "rust", notes = "Allowed only with // SAFETY: comment" },
+  { name = "no-transmute", pattern = "transmute", severity = "critical", language = "rust", notes = "Banned unless FFI boundary" },
+]
+
+[neurosymbolic-architecture]
+description = """
+Typell is itself a neurosymbolic system — it combines formal symbolic reasoning
+(type theory, proof generation) with neural pattern recognition (heuristic proof
+search, counterexample generation, proof obligation inference).
+
+Symbolic Layer:
+- Bidirectional type checking (sound, complete, decidable)
+- Proof term construction (formal, machine-verifiable)
+- Effect inference (compositional, algebraic)
+- Session type verification (protocol compliance)
+
+Neural Layer:
+- Proof search heuristics (learned from proof repositories)
+- Counterexample generation (guided by type structure)
+- Query refactoring suggestions (semantic similarity)
+- Error explanation (natural language from type errors)
+- Drift prediction (anomaly detection in proof health)
+
+The symbolic layer provides guarantees. The neural layer provides usability.
+Neither alone is sufficient — this is the eNASAID philosophy.
+"""
+
+[panll-integration]
+pane-n-role = """
+Typell IS PanLL's Pane-N reasoning engine. When PanLL's operator writes
+constraints in Pane-L, Typell:
+1. Type-checks the constraints (bidirectional inference)
+2. Generates proof obligations (what must be proven)
+3. Dispatches proofs to Echidna (complex) or solves locally (simple)
+4. Tracks effects (what this query reads/writes/allocates)
+5. Verifies session protocols (connection lifecycle)
+6. Returns ProvedResult to Pane-W (validated output with certificates)
+
+The operator sees this as Pane-N's 'thinking' — tokens flowing through
+Anti-Crash validation. Under the hood, it is Typell's verification kernel.
+"""
+
+[neural-config]
+confidence-threshold = 0.85
+proof-search-depth = 10
+counterexample-budget = 100
+model = "typell-heuristic-v1"

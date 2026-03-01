@@ -1,0 +1,36 @@
+= Typell - Citation Guide
+:toc:
+
+== BibTeX
+
+[source,bibtex]
+----
+@software{Typell_2026,
+  author = {Jewell, Jonathan},
+  title = {Typell},
+  year = {2026},
+  url = {https://github.com/hyperpolymath/Typell},
+  license = {PMPL-1.0-or-later}
+}
+----
+
+== Harvard Style
+
+Jewell, J.D.A. (2026) _Typell_ [Computer software]. Available at: https://github.com/hyperpolymath/Typell
+
+== OSCOLA
+
+Jonathan D.A. Jewell, 'Typell' (2026) <https://github.com/hyperpolymath/Typell>
+
+== MLA
+
+Jewell, Jonathan "Typell." 2026, github.com/hyperpolymath/Typell.
+
+== APA 7
+
+Jewell, J.D.A. (2026). _Typell_ [Computer software]. GitHub. https://github.com/hyperpolymath/Typell
+
+== See Also
+
+* link:../CITATION.cff[CITATION.cff]
+* link:../codemeta.json[codemeta.json]
