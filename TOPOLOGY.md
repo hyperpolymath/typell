@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: PMPL-1.0-or-later -->
 <!-- TOPOLOGY.md — Typell architecture map and completion dashboard -->
-<!-- Last updated: 2026-03-01 -->
+<!-- Last updated: 2026-03-10 -->
 
 # Typell — Project Topology
 
@@ -99,7 +99,9 @@ FORMAL SPECIFICATIONS (Phase 1)
   Proof system spec                  ░░░░░░░░░░   0%    Gen/verify/cert/compose
 
 IDRIS2 ABI (Phase 1)
-  Types.idr                          ░░░░░░░░░░   0%    Core type representations
+  Types.idr                          ██████████ 100%    Platform types, Result codes, Handle proofs
+  Layout.idr                         ██████████ 100%    Memory layout, alignment, C ABI compliance
+  Foreign.idr                        ██████████ 100%    FFI declarations for libtypell
   Dependent.idr                      ░░░░░░░░░░   0%    Pi/Sigma proofs
   Linear.idr                         ░░░░░░░░░░   0%    Resource safety proofs
   Session.idr                        ░░░░░░░░░░   0%    Protocol compliance proofs
@@ -114,6 +116,15 @@ RUST KERNEL (Phases 3-5)
   Session protocol manager           ░░░░░░░░░░   0%    Connection lifecycle
   JSON-RPC protocol server           ░░░░░░░░░░   0%    Primary interface
 
+ZIG FFI (Phase 1)
+  build.zig                          ██████████ 100%    Shared/static lib, headers, tests, benches
+  src/main.zig                       ██████████ 100%    ~300 lines, all FFI functions implemented
+  test/integration_test.zig          ██████████ 100%    18 integration tests (lifecycle, ops, safety)
+
+VQL-dt++ GRAMMAR (Phase 2)
+  vql-dtpp-grammar.ebnf              ██████████ 100%    6 clauses, 199 lines, no keyword conflicts
+  VQL-SPEC.adoc Appendix E           ██████████ 100%    Comparison table + individual syntax examples
+
 LANGUAGE BACKENDS (Phases 6-8)
   VQL-dt++ (VeriSimDB)               ░░░░░░░░░░   0%    Port from ReScript
   GQL-dt++ (LithoGlyph)             ░░░░░░░░░░   0%    Bridge to Lean 4
@@ -126,7 +137,7 @@ INTEGRATIONS (Phases 9-10)
   CI/CD plugins                      ░░░░░░░░░░   0%    Secondary consumer
 
 ──────────────────────────────────────────────────────────────────────────────
-OVERALL:                             █░░░░░░░░░  10%    Phase 0 complete. Phase 1 next.
+OVERALL:                             ██░░░░░░░░  20%    Phase 0 complete. ABI+FFI+grammar done. Formal specs next.
 ```
 
 ## Key Dependencies

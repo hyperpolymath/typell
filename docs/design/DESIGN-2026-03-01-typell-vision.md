@@ -299,7 +299,143 @@ Execute (database) or Display (PanLL/editor)
 - **Error explanations:** User-friendly messages ("This variable is linear and cannot be copied")
 - **Progressive disclosure:** Start simple, reveal complexity as needed
 
-## Example: A VQL-dt++ Query Through Typell
+## VQL-dt vs VQL-dt++ Feature Comparison
+
+| Feature | VQL-dt (current) | VQL-dt++ (Typell) | Kernel Component |
+|---------|-----------------|-------------------|------------------|
+| Dependent types (Pi, Sigma) | Yes | Yes | Bidirectional type checker |
+| Proof obligations (EXISTENCE, etc.) | Yes | Yes | Proof engine |
+| ZKP witness generation | Yes | Yes | Proof certificates |
+| **Linear types** | No | `CONSUME AFTER n USE` | Linear resource tracker |
+| **Session types** | No | `WITH SESSION protocol` | Session protocol manager |
+| **Effect systems** | Partial | `EFFECTS { Read, Write, ... }` | Compositional effect inference |
+| **Modal types** | No | `IN TRANSACTION state` | Modal scope checker |
+| **Proof-carrying code** | Partial (pre-conditions) | `PROOF ATTACHED theorem` | Cryptographic PCC |
+| **QTT** | No | `USAGE LIMIT n` | Quantitative type tracker |
+
+Grammar delta: `nextgen-databases/typeql-experimental/docs/vql-dtpp-grammar.ebnf` (199 lines)
+Normative spec: `nextgen-databases/verisimdb/docs/VQL-SPEC.adoc` Appendix E
+
+## Individual Feature Syntax Examples
+
+Each dt++ clause shown in isolation. These are independently useful — not
+all-or-nothing.
+
+### Linear Types — CONSUME AFTER
+
+```sql
+-- Single-use: result consumed exactly once, then invalidated
+SELECT GRAPH.*, DOCUMENT.* FROM HEXAD 'entity-001'
+  PROOF EXISTENCE(entity-001)
+  CONSUME AFTER 1 USE;
+
+-- Multi-use with budget: federation retry budget of 3
+SELECT * FROM FEDERATION '/universities/*'
+  WITH DRIFT STRICT
+  CONSUME AFTER 3 USE;
+```
+
+**What it prevents:** duplicate reads, data leaks, unbounded result sharing.
+**Idris2 ABI:** `(1 conn : Connection)` for single-use, `(n conn : BoundedConn n)` for multi-use.
+
+### Session Types — WITH SESSION
+
+```sql
+-- Read-only: can query but type system prevents mutations
+SELECT GRAPH FROM HEXAD 'entity-001'
+  WITH SESSION ReadOnlyProtocol;
+
+-- Mutation: INSERT/UPDATE/DELETE allowed
+INSERT HEXAD WITH DOCUMENT(title = 'New Entry')
+  WITH SESSION MutationProtocol;
+
+-- Streaming: cursor-based result batching
+SELECT * FROM FEDERATION '/sensors/*'
+  WITH SESSION StreamProtocol;
+```
+
+**What it prevents:** protocol violations (writing in read-only session, querying
+on closed connection, committing without opening transaction).
+**State machine:** Fresh → Authenticated → InTransaction → Committed → Closed.
+**Built-in protocols:** `ReadOnlyProtocol`, `MutationProtocol`, `StreamProtocol`, `BatchProtocol`.
+
+### Effect Systems — EFFECTS
+
+```sql
+-- Pure read: type checker rejects any writes
+SELECT GRAPH FROM HEXAD 'entity-001'
+  EFFECTS { Read };
+
+-- Mutation with audit trail
+INSERT HEXAD WITH DOCUMENT(title = 'Audited Entry')
+  PROOF INTEGRITY(schema-v2)
+  EFFECTS { Read, Write, Audit };
+
+-- Federation with data transformation
+SELECT VECTOR FROM FEDERATION '/cluster/*'
+  EFFECTS { Read, Federate, Transform };
+```
+
+**What it prevents:** undeclared side effects. Checker verifies actual operations ⊆ declared effects.
+**Available effects:** `Read`, `Write`, `Cite`, `Audit`, `Transform`, `Federate` (extensible).
+
+### Modal Types — IN TRANSACTION
+
+```sql
+-- Only visible in committed state
+SELECT GRAPH FROM HEXAD 'entity-001'
+  IN TRANSACTION Committed;
+
+-- Snapshot isolation: consistent view at query time
+SELECT * FROM FEDERATION '/analytics/*'
+  IN TRANSACTION ReadSnapshot;
+```
+
+**What it prevents:** data scope leaks. Data in one transaction scope cannot leak
+to another without explicit marshalling.
+**Transaction states:** `Fresh`, `Active`, `Committed`, `RolledBack`, `ReadSnapshot`.
+
+### Proof-Carrying Code — PROOF ATTACHED
+
+```sql
+-- Attach post-condition theorem to result (different from PROOF pre-condition)
+SELECT GRAPH FROM HEXAD 'entity-001'
+  PROOF EXISTENCE(entity-001)
+  PROOF ATTACHED IntegrityTheorem;
+
+-- Freshness guarantee on federation results
+SELECT * FROM FEDERATION '/realtime/*'
+  WITH DRIFT STRICT
+  PROOF ATTACHED FreshnessGuarantee;
+
+-- Parameterised theorem
+SELECT DOCUMENT FROM HEXAD 'entity-001'
+  PROOF ATTACHED CrossModalConsistency(tolerance = 0.01);
+```
+
+**What it provides:** cryptographic proof certificates attached to query results.
+Zero-trust verification — consumers can verify results without trusting the source.
+**Idris2 ABI:** `ProvedResult : (result : QueryResult) -> (prf : Theorem) -> Type`.
+
+### Quantitative Type Theory — USAGE LIMIT
+
+```sql
+-- Cap resource operations (connections, store reads, API calls)
+SELECT GRAPH FROM HEXAD 'entity-001'
+  USAGE LIMIT 100;
+
+-- Federation with bounded resource budget
+SELECT * FROM FEDERATION '/global/*'
+  WITH DRIFT TOLERATE
+  USAGE LIMIT 1000;
+```
+
+**What it provides:** bounded resource consumption across the query plan.
+Different from `LIMIT` (which caps result rows).
+**Idris2 ABI:** `BoundedResource : (n : Nat) -> Type`. Generalises linear types
+from exact-1 to at-most-n.
+
+## Example: A VQL-dt++ Query Through Typell (All Six Combined)
 
 ```sql
 -- Maximal strictness: linear, session-typed, effect-annotated, proof-carrying
@@ -383,7 +519,9 @@ Each phase delivers independent value. No big bang.
 1. Should the VQL-dt ReScript code be ported to Rust, or should Typell
    call VeriSimDB's existing type checker via the protocol?
 2. How tightly should Typell couple with Echidna for proof dispatch?
-3. What is the right syntax for linear/session annotations in each query language?
+3. ~~What is the right syntax for linear/session annotations in each query language?~~
+   **RESOLVED:** VQL-dt++ grammar delta specifies all six clauses (`vql-dtpp-grammar.ebnf`).
+   GQL-dt++ and KQL-dt++ syntax TBD but will follow the same clause pattern.
 4. Should Typell define a universal query AST that all backends parse into,
    or should each backend maintain its own AST?
 5. How does the PanLL v0.2.0 VeriSimDB integration timeline align with Typell?
