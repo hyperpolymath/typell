@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: PMPL-1.0-or-later
+# SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell
+
+[package]
+name = "typell-server"
+description = "TypeLL JSON-RPC server — exposes the verification kernel to PanLL and other clients"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+typell-core = { workspace = true }
+typell-eclexia = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+axum = "0.8"
+tower-http = { version = "0.6", features = ["cors"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

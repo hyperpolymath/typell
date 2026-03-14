@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: PMPL-1.0-or-later
+# SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell
+
+[workspace]
+resolver = "2"
+members = [
+    "crates/typell-core",
+    "crates/typell-eclexia",
+    "crates/typell-affinescript",
+    "crates/typell-ephapax",
+    "crates/typell-wokelang",
+    "crates/typell-tangle",
+    "crates/typell-betlang",
+    "crates/typell-mylang",
+    "crates/typell-oblibeny",
+    "crates/typell-jtv",
+    "crates/typell-phronesis",
+    "crates/typell-errorlang",
+    "crates/typell-vql",
+    "crates/typell-server",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "PMPL-1.0-or-later"
+authors = ["Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>"]
+repository = "https://github.com/hyperpolymath/typell"
+
+[workspace.dependencies]
+typell-core = { path = "crates/typell-core" }
+typell-eclexia = { path = "crates/typell-eclexia" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"

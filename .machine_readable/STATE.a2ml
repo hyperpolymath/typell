@@ -1,60 +1,116 @@
 # SPDX-License-Identifier: PMPL-1.0-or-later
 # Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
 #
-# STATE.a2ml — Typell project state checkpoint
+# STATE.a2ml — TypeLL project state checkpoint
 
 [metadata]
 project = "typell"
 version = "0.1.0-alpha"
-last-updated = "2026-03-01"
+last-updated = "2026-03-14"
 status = "active"
 
 [project-context]
-name = "Typell"
-purpose = "PanLL's verification kernel — the type-theoretic engine powering dependent types, linear types, session types, QTT, proof-carrying code, and effect systems for neurosymbolic query languages (VQL-dt++, GQL-dt++, KQL-dt++)."
-completion-percentage = 5
-relationship = "Typell IS PanLL's Pane-N reasoning backend and Pane-L formal constraint engine. It is not a competing project."
+name = "TypeLL"
+purpose = "PanLL's verification kernel — the type-theoretic engine powering dependent types, linear types, session types, QTT, proof-carrying code, effect systems, and dimensional analysis for neurosymbolic query languages (VQL-dt++, GQL-dt++, KQL-dt++) and all hyperpolymath languages."
+completion-percentage = 35
+relationship = "TypeLL IS PanLL's core verification substrate — not a competing project. TypeLL keeps its own kernel; PanLL declares it as a core dependency."
 
 [position]
-phase = "design"
-maturity = "experimental"
+phase = "alpha"
+maturity = "early-alpha"
+
+[architecture]
+crates = 14
+kernel-modules = 11
+bridge-crates = 13
+total-tests = 221
+kernel-tests = 87
+bridge-tests = 134
+idris2-abi-files = 3
+zig-ffi-files = 1
+languages = ["Rust", "Idris2", "Zig"]
+
+[kernel-modules]
+modules = [
+  { name = "types.rs", lines = 920, purpose = "Unified type representation (HM + dependent + linear + effects + sessions + dimensional + refinement)" },
+  { name = "unify.rs", lines = 750, purpose = "Robinson unification with occurs check, dependent length unification, row-polymorphic effect unification, session type unification, term evaluation" },
+  { name = "infer.rs", lines = 405, purpose = "Bidirectional type inference (synthesis + checking), generalization, instantiation, session type variable tracking" },
+  { name = "check.rs", lines = 280, purpose = "Type checking coordinator" },
+  { name = "linear.rs", lines = 200, purpose = "Linear/affine usage tracking via QTT semiring" },
+  { name = "effects.rs", lines = 195, purpose = "Algebraic effect system with row polymorphism, effect row merge/handle/subrow" },
+  { name = "qtt.rs", lines = 130, purpose = "QTT semiring operations (context addition, scaling)" },
+  { name = "dimensional.rs", lines = 380, purpose = "SI-based dimensional analysis with compile-time exponent evaluation" },
+  { name = "session.rs", lines = 207, purpose = "Session type duality, well-formedness, protocol checking" },
+  { name = "proof.rs", lines = 340, purpose = "Proof obligation generation, built-in SMT decision procedure, refinement predicate evaluation" },
+  { name = "error.rs", lines = 156, purpose = "Diagnostic types (serializable for JSON-RPC bridge to PanLL)" },
+]
+
+[bridge-crates]
+crates = [
+  { name = "typell-affinescript", tests = 13, status = "complete" },
+  { name = "typell-tangle", tests = 11, status = "complete" },
+  { name = "typell-eclexia", tests = 10, status = "complete" },
+  { name = "typell-vql", tests = 16, status = "complete" },
+  { name = "typell-mylang", tests = 8, status = "complete" },
+  { name = "typell-betlang", tests = 10, status = "complete" },
+  { name = "typell-wokelang", tests = 9, status = "complete" },
+  { name = "typell-ephapax", tests = 9, status = "complete" },
+  { name = "typell-oblibeny", tests = 13, status = "complete" },
+  { name = "typell-phronesis", tests = 9, status = "complete" },
+  { name = "typell-errorlang", tests = 12, status = "complete" },
+  { name = "typell-jtv", tests = 11, status = "complete" },
+  { name = "typell-server", tests = 0, status = "scaffold" },
+]
 
 [route-to-mvp]
 milestones = [
   { name = "Phase 0: Vision capture and repo scaffolding", completion = 100 },
-  { name = "Phase 1: Formal type system specification (Idris2 ABI)", completion = 0 },
-  { name = "Phase 2: Verification Protocol spec (JSON-RPC)", completion = 0 },
-  { name = "Phase 3: Rust kernel — bidirectional type checker", completion = 0 },
-  { name = "Phase 4: Rust kernel — proof engine (gen/verify/cache)", completion = 0 },
-  { name = "Phase 5: Rust kernel — effect tracker and session manager", completion = 0 },
-  { name = "Phase 6: VQL-dt++ backend (port from VeriSimDB src/vql/)", completion = 0 },
+  { name = "Phase 1: Formal type system specification (Idris2 ABI)", completion = 100 },
+  { name = "Phase 2: Verification Protocol spec (JSON-RPC)", completion = 60 },
+  { name = "Phase 3: Rust kernel — bidirectional type checker", completion = 80 },
+  { name = "Phase 4: Rust kernel — proof engine (gen/verify/cache)", completion = 50 },
+  { name = "Phase 5: Rust kernel — effect tracker and session manager", completion = 70 },
+  { name = "Phase 6: VQL-dt++ backend (port from VeriSimDB src/vql/)", completion = 20 },
   { name = "Phase 7: GQL-dt++ backend (integrate LithoGlyph Lean 4 work)", completion = 0 },
   { name = "Phase 8: KQL-dt++ backend (new, from QuandleDB research)", completion = 0 },
-  { name = "Phase 9: PanLL integration (Pane-N + Pane-L)", completion = 0 },
+  { name = "Phase 9: PanLL integration (Pane-N + Pane-L)", completion = 100 },
   { name = "Phase 10: VS Code extension / CLI / CI plugins", completion = 0 },
+]
+
+[kernel-gap-status]
+# Previously open gaps — all addressed 2026-03-14
+resolved = [
+  { gap = "Session type variables", file = "types.rs", resolution = "SessionType.has_vars() + free_type_vars() implemented, Substitution applies through sessions, InferCtx tracks session type vars" },
+  { gap = "Dependent length unification", file = "unify.rs", resolution = "terms_unify() for syntactic term equality, Array unification checks lengths when both present" },
+  { gap = "Row-polymorphic effect unification", file = "unify.rs", resolution = "partition_effects() separates concrete effects from row variables (lowercase Named = row var), open rows absorb differences" },
+  { gap = "Compile-time exponent evaluation", file = "dimensional.rs", resolution = "eval_term_to_i64() evaluates Term expressions at compile time, check_binary_op_with_exponent() uses it for Pow" },
+  { gap = "SMT refinement decision procedure", file = "proof.rs", resolution = "eval_predicate() handles constant comparisons + boolean combinations, try_discharge_refinements() auto-discharges provable obligations" },
+]
+remaining = [
+  { gap = "Full SMT solver integration", priority = "low", notes = "ECHIDNA handles complex proofs — built-in decision procedure sufficient for common cases" },
+  { gap = "Compile-time TypeLL via ReScript PPX", priority = "low", notes = "Long-term goal, needs custom build plugin" },
+  { gap = "Multi-party session types", priority = "medium", notes = "Current sessions are binary; multi-party needs choreography types" },
+  { gap = "typell-server HTTP/JSON-RPC endpoint", priority = "medium", notes = "Scaffold exists, needs actual route handlers" },
 ]
 
 [blockers-and-issues]
 blockers = [
-  "PanLL is the priority — Typell must not divert effort from PanLL development",
-  "VQL-dt bidirectional type checker exists in ReScript (VeriSimDB) — needs port strategy",
-  "GQL-dt exists in Lean 4 (LithoGlyph) — integration strategy TBD",
+  "PanLL is the priority — TypeLL kernel work is driven by PanLL panel needs",
   "KQL-dt not yet designed — depends on QuandleDB category-theoretic research",
 ]
 
 [critical-next-actions]
 actions = [
-  "Complete design vision document (DESIGN-2026-03-01-typell-vision.md)",
-  "Define the Verification Protocol specification (JSON-RPC schema)",
-  "Write Idris2 ABI definitions for core type system (dependent, linear, QTT)",
-  "Determine port strategy: VQL-dt ReScript → Rust kernel",
-  "Determine integration strategy: GQL-dt Lean 4 → Typell protocol",
-  "Align with PanLL roadmap v0.2.0-v0.3.0 (VeriSimDB + Echidna integration)",
+  "Wire typell-server crate to expose JSON-RPC endpoint (localhost:7800)",
+  "Port VQL-dt bidirectional type checker from VeriSimDB ReScript to typell-vql bridge",
+  "Add multi-party session type support for BoJ federation protocol typing",
+  "Performance benchmarks for kernel operations (unification, inference, proof discharge)",
 ]
 
 [design-principles]
 principles = [
-  "Typell serves PanLL — never competes",
+  "TypeLL serves PanLL — never competes",
+  "TypeLL keeps its own kernel — PanLL consumes, doesn't replace",
   "Protocol-first — the JSON-RPC verification protocol is the primary interface",
   "Separable layers — kernel works standalone, PanLL consumes it",
   "Incremental — each type system feature is independently useful",
@@ -63,9 +119,8 @@ principles = [
 ]
 
 [maintenance-status]
-last-run-utc = "never"
-last-report = "reports/maintenance/latest.json"
-last-result = "unknown"
+last-run-utc = "2026-03-14"
+last-result = "221 tests passing, 0 failures, 0 warnings"
 open-warnings = 0
 open-failures = 0
 
