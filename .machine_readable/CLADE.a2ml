@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: PMPL-1.0-or-later
+# Clade declaration — part of the gv-clade-index registry
+# See: https://github.com/hyperpolymath/gv-clade-index
+
+[identity]
+uuid = "e54e1b0d-2f85-5d05-9b12-e01d726bfd65"
+primary-forge = "github"
+primary-owner = "hyperpolymath"
+canonical-name = "typell"
+prefixed-name = "nl-typell"
+
+[clade]
+primary = "nl"
+secondary = ["fv"]
+assigned = "2026-03-16"
+rationale = ""
+
+[forges]
+github = "hyperpolymath/typell"
+gitlab = "hyperpolymath/typell"
+bitbucket = "hyperpolymath/typell"
+
+[lineage]
+type = "standalone"
+parent = "Type-level programming language — PanLL integration"
+born = "2026-03-16"
