@@ -11,5 +11,6 @@
 //! The AI<T> type maps to a TypeLL effect annotation, tracking which
 //! values in the program are AI-generated and may require validation.
 
+#![forbid(unsafe_code)]
 pub mod bridge;
 pub mod rules;

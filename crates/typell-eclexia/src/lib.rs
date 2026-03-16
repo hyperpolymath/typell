@@ -36,5 +36,6 @@
 //! resource.rs — Eclexia-specific resource type rules
 //! ```
 
+#![forbid(unsafe_code)]
 pub mod bridge;
 pub mod resource;

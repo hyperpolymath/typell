@@ -13,5 +13,6 @@
 //! 5. **Proof-carrying**: PROOF ATTACHED theorem → refinement predicates
 //! 6. **QTT**: USAGE LIMIT n → UsageQuantifier::Bounded(n)
 
+#![forbid(unsafe_code)]
 pub mod bridge;
 pub mod rules;

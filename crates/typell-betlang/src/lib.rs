@@ -11,5 +11,6 @@
 //! Probabilistic types map to TypeLL's effect system (non-determinism effect)
 //! and the Ternary type maps to a refined enum type.
 
+#![forbid(unsafe_code)]
 pub mod bridge;
 pub mod rules;

@@ -26,5 +26,6 @@
 //! rules.rs — AffineScript-specific QTT and refinement rules
 //! ```
 
+#![forbid(unsafe_code)]
 pub mod bridge;
 pub mod rules;

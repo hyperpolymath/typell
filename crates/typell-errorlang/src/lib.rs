@@ -13,5 +13,6 @@
 //! These map to TypeLL's effect system (non-determinism, instability effects)
 //! and refinement types (stability score as a predicate).
 
+#![forbid(unsafe_code)]
 pub mod bridge;
 pub mod rules;

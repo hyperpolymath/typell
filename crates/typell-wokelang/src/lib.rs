@@ -11,5 +11,6 @@
 //!   via TypeLL's dimensional analysis (from Eclexia)
 //! - **Emotional annotations**: `@emote` tags — metadata, not type-level
 
+#![forbid(unsafe_code)]
 pub mod bridge;
 pub mod rules;

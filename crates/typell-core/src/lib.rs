@@ -45,6 +45,7 @@
 //! 6. **Sessions** — protocol duality checking
 //! 7. **Proofs** — obligation generation for dependent types
 
+#![forbid(unsafe_code)]
 pub mod check;
 pub mod dimensional;
 pub mod effects;

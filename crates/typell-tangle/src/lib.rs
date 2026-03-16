@@ -13,5 +13,6 @@
 //! a communication protocol where strands represent channels and crossings
 //! represent message exchanges.
 
+#![forbid(unsafe_code)]
 pub mod bridge;
 pub mod rules;

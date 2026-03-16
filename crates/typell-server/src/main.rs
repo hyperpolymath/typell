@@ -25,6 +25,7 @@
 //! # PanLL connects via TypeLLCmd.res
 //! ```
 
+#![forbid(unsafe_code)]
 mod handlers;
 
 use axum::routing::{get, post};

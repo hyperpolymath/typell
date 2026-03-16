@@ -11,5 +11,6 @@
 //! JtV also has 7 number systems with a coercion lattice, mapped to
 //! named numeric types in TypeLL.
 
+#![forbid(unsafe_code)]
 pub mod bridge;
 pub mod rules;

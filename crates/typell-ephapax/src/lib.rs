@@ -11,5 +11,6 @@
 //! discipline, with contracts (pre/post/invariant) becoming refinement
 //! predicates.
 
+#![forbid(unsafe_code)]
 pub mod bridge;
 pub mod rules;

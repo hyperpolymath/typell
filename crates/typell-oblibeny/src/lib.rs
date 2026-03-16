@@ -11,5 +11,6 @@
 //! to TypeLL's linear type discipline. The accountability traces (TTrace)
 //! map to an audit effect.
 
+#![forbid(unsafe_code)]
 pub mod bridge;
 pub mod rules;

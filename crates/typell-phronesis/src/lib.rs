@@ -11,5 +11,6 @@
 //! These map to TypeLL's refined types (conditions as predicates) and
 //! effect system (actions as effects).
 
+#![forbid(unsafe_code)]
 pub mod bridge;
 pub mod rules;
