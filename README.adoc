@@ -117,7 +117,7 @@ VS Code extensions, CLI tools, and CI/CD pipelines are secondary consumers.
 **Phase 0: Vision capture and repo scaffolding** — complete.
 
 See `docs/design/DESIGN-2026-03-01-typell-vision.md` for the full design vision.
-See `.machine_readable/STATE.a2ml` for current project state.
+See `.machine_readable/6a2/STATE.a2ml` for current project state.
 
 == ABI/FFI Standards (Hyperpolymath Universal Standard)
 

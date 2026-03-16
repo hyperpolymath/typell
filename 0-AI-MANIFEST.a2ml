@@ -177,8 +177,8 @@ Policy enforcement contracts (k9, dust, lust, must, trust).
 - Check canonical location: `.machine_readable/`
 - Know the invariants (no believe_me, protocol-first, serves PanLL)
 - Read `.machine_readable/policies/MAINTENANCE-AXES.a2ml` for axis ordering
-- Read `.machine_readable/STATE.a2ml` for current status
-- Read `.machine_readable/ECOSYSTEM.a2ml` for PanLL relationship
+- Read `.machine_readable/6a2/STATE.a2ml` for current status
+- Read `.machine_readable/6a2/ECOSYSTEM.a2ml` for PanLL relationship
 
 ## LIFECYCLE HOOKS
 
@@ -188,7 +188,7 @@ When starting a new session:
 
 1. Read and acknowledge this manifest
 2. Log session start (optional)
-3. Read `.machine_readable/STATE.a2ml`
+3. Read `.machine_readable/6a2/STATE.a2ml`
 4. Check for blockers
 5. State understanding of canonical locations
 6. State understanding of PanLL relationship
@@ -197,7 +197,7 @@ When starting a new session:
 
 When ending a session:
 
-1. Update `.machine_readable/STATE.a2ml` if changes made
+1. Update `.machine_readable/6a2/STATE.a2ml` if changes made
 2. Log session end (optional)
 3. Document new blockers
 4. Summarize outcomes
