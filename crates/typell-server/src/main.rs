@@ -62,6 +62,13 @@ async fn main() {
         .route("/api/v1/compute", post(handlers::compute))
         .route("/api/v1/signatures", get(handlers::list_signatures))
         .route("/api/v1/universes", get(handlers::universes))
+        // Additional endpoints consumed by PanLL's TypeLLCmd.res
+        .route("/api/v1/infer-usage", post(handlers::infer_usage))
+        .route("/api/v1/check-effects", post(handlers::check_effects))
+        .route("/api/v1/check-dimensional", post(handlers::check_dimensional))
+        .route("/api/v1/generate-obligations", post(handlers::generate_obligations))
+        // VQL-UT endpoint for 10-level type-safe query checking
+        .route("/api/v1/vql-ut/check", post(handlers::vql_ut_check))
         .layer(cors);
 
     let addr = format!("127.0.0.1:{port}");

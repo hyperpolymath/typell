@@ -811,6 +811,7 @@ dependencies = [
  "tracing-subscriber",
  "typell-core",
  "typell-eclexia",
+ "typell-vql",
 ]
 
 [[package]]
