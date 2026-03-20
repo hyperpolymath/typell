@@ -3,7 +3,7 @@
 
 [package]
 name = "typell-vql"
-description = "TypeLL bridge for VQL-dt++ — maps query types (modalities, sessions, effects, linear usage) into TypeLL"
+description = "TypeLL bridge for VQL-UT — maps all 10 type safety levels into TypeLL's unified type system (supersedes VQL-DT)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
