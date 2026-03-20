@@ -13,6 +13,7 @@ repository.workspace = true
 [dependencies]
 typell-core = { workspace = true }
 typell-eclexia = { workspace = true }
+typell-vql = { path = "../typell-vql" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
