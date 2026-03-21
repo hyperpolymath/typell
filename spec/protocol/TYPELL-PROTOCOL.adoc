@@ -1,0 +1,881 @@
+// SPDX-License-Identifier: PMPL-1.0-or-later
+// SPDX-FileCopyrightText: Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath)
+//
+// TypeLL Verification Protocol Specification
+// Phase 1 — Formal specification of the JSON-RPC/REST interface between
+// PanLL frontends and the TypeLL verification kernel.
+
+= TypeLL Verification Protocol Specification
+Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+:revnumber: 0.1.0
+:revdate: 2026-03-21
+:revremark: Phase 1 initial specification
+:toc: left
+:toclevels: 4
+:sectnums:
+:sectnumlevels: 4
+:source-highlighter: rouge
+:icons: font
+:experimental:
+:stem: latexmath
+
+== Abstract
+
+This document specifies the wire protocol between the TypeLL verification kernel
+and its client frontends (PanLL panels, ECHIDNA provers, IDE integrations).
+TypeLL exposes a REST/JSON API over HTTP on `localhost:7800`, with endpoints
+for bidirectional type checking, type inference, refinement, effect analysis,
+usage inference, dimensional analysis, and proof obligation generation.
+
+The protocol is designed for local-machine communication between processes in the
+PanLL workspace layer. It is not intended for network-facing deployment.
+
+== Status
+
+[cols="1,3"]
+|===
+| Status | *Draft*
+| Version | 0.1.0
+| Stability | Experimental
+| Supersedes | None
+| Implementation | `crates/typell-server/` (Rust, axum)
+| Client reference | `TypeLLCmd.res` (PanLL)
+|===
+
+== Conformance
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD",
+"SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be
+interpreted as described in https://www.rfc-editor.org/rfc/rfc2119[RFC 2119].
+
+== Transport Binding
+
+=== Network Parameters
+
+[cols="1,2"]
+|===
+| Parameter | Value
+| Transport | HTTP/1.1 over TCP
+| Bind address | `127.0.0.1`
+| Default port | `7800`
+| Port override | `TYPELL_PORT` environment variable
+| Content-Type | `application/json; charset=utf-8`
+| CORS | Permissive (any origin, for browser-based PanLL access)
+|===
+
+=== Base URL
+
+All endpoints are prefixed with `/api/v1/`. The full base URL is:
+
+[source]
+----
+http://127.0.0.1:7800/api/v1/
+----
+
+=== Connection Lifecycle
+
+. The TypeLL server starts and binds to `127.0.0.1:7800`.
+. PanLL discovers the server by probing the health endpoint.
+. Requests are stateless — each request carries its full context.
+. No persistent sessions are maintained at the transport layer.
+. The server MAY be restarted without affecting correctness (all
+  state is per-request).
+
+NOTE: Future versions MAY introduce session-based endpoints for incremental
+type checking. These will be specified as a separate session management
+protocol layered over this base protocol.
+
+== Endpoint Catalogue
+
+=== Summary
+
+[cols="2,1,1,3"]
+|===
+| Path | Method | Handler | Description
+
+| `/api/v1/health`
+| `GET`
+| `health`
+| Server health check and capability advertisement
+
+| `/api/v1/check`
+| `POST`
+| `check`
+| Bidirectional type checking with language-aware routing
+
+| `/api/v1/infer`
+| `POST`
+| `infer`
+| Type inference (synthesis mode)
+
+| `/api/v1/refine`
+| `POST`
+| `refine`
+| Refinement type application
+
+| `/api/v1/compute`
+| `POST`
+| `compute`
+| Type-level computation and normalisation
+
+| `/api/v1/signatures`
+| `GET`
+| `list_signatures`
+| List available type signatures in the environment
+
+| `/api/v1/universes`
+| `GET`
+| `universes`
+| Query the type universe hierarchy
+
+| `/api/v1/infer-usage`
+| `POST`
+| `infer_usage`
+| QTT usage quantifier inference
+
+| `/api/v1/check-effects`
+| `POST`
+| `check_effects`
+| Effect tracking and purity analysis
+
+| `/api/v1/check-dimensional`
+| `POST`
+| `check_dimensional`
+| Dimensional analysis (physical unit checking)
+
+| `/api/v1/generate-obligations`
+| `POST`
+| `generate_obligations`
+| Proof obligation extraction for external provers
+
+| `/api/v1/vql-ut/check`
+| `POST`
+| `vql_ut_check`
+| VQL-UT 10-level type safety checking
+|===
+
+== Data Types
+
+=== CheckContext
+
+The `CheckContext` object is sent as a JSON string in the `context` field of
+POST requests. It controls language-aware routing and feature selection.
+
+[source,json]
+----
+{
+  "language": "vql",
+  "dialect": "vql-ut",
+  "features": ["dependent", "linear"],
+  "domain": "",
+  "mode": "",
+  "modules": null,
+  "format": ""
+}
+----
+
+[cols="2,1,1,4"]
+|===
+| Field | Type | Required | Description
+
+| `language`
+| `string`
+| No
+| Target language identifier. One of: `vql`, `schema`, `my-lang`, `idris2`,
+  `constraint`, `config`, `policy`, `game-data`, `metadata`, `code`.
+  Defaults to generic code checking if empty or unrecognised.
+
+| `dialect`
+| `string`
+| No
+| Dialect within the language (e.g., `vql-ut`, `solo`, `duet`).
+
+| `features`
+| `string[]`
+| No
+| Required type system features. Valid values: `dependent`, `linear`,
+  `effect`, `session`, `quantitative`, `proof-carrying`, `refinement`,
+  `erasure`.
+
+| `domain`
+| `string`
+| No
+| Domain specialisation hint (e.g., `ums-level-abi`, `cloudguard`).
+
+| `mode`
+| `string`
+| No
+| Processing mode override. Setting `obligation-generation` activates
+  proof obligation extraction regardless of language.
+
+| `modules`
+| `u32 \| null`
+| No
+| Expected number of ABI modules (for UMS validation).
+
+| `format`
+| `string`
+| No
+| Format hint for schema checking.
+|===
+
+==== Feature-to-Discipline Mapping
+
+The `features` array determines the `TypeDiscipline` applied to the
+checking session. The mapping follows a priority order:
+
+[source]
+----
+if "linear" in features     => TypeDiscipline::Linear
+if "quantitative" in features => TypeDiscipline::Linear
+if "dependent" in features  => TypeDiscipline::Dependent
+if "refinement" in features => TypeDiscipline::Refined
+otherwise                   => TypeDiscipline::Affine
+----
+
+=== CheckRequest
+
+[source,json]
+----
+{
+  "expression": "<expression-to-check>",
+  "context": "{\"language\":\"vql\",\"features\":[\"linear\"]}"
+}
+----
+
+[cols="2,1,1,4"]
+|===
+| Field | Type | Required | Description
+
+| `expression`
+| `string`
+| Yes
+| The expression, type annotation, query, or code fragment to type-check.
+  Format depends on the target language specified in `context`.
+  MUST NOT be empty.
+
+| `context`
+| `string`
+| No
+| JSON-encoded `CheckContext`. Defaults to empty context (generic code
+  checking with affine discipline) if omitted or empty.
+|===
+
+=== CheckResult
+
+The unified response type for all checking endpoints.
+
+[source,json]
+----
+{
+  "valid": true,
+  "type_signature": "(n : Int) -> Vec<n, Bool>",
+  "explanation": "Expression has type: (n : Int) -> Vec<n, Bool>",
+  "proof_obligations": ["PO-0000: n >= 0"],
+  "effects": ["IO"],
+  "linearity_issues": [],
+  "session_notes": [],
+  "features": ["dep", "lin"],
+  "usage": "1",
+  "discipline": "dependent",
+  "inference_source": "inferred"
+}
+----
+
+[cols="2,1,4"]
+|===
+| Field | Type | Description
+
+| `valid`
+| `bool`
+| Whether the expression type-checks successfully.
+
+| `type_signature`
+| `string`
+| The inferred or checked type, rendered as a display string. Set to
+  `<error>` on failure.
+
+| `explanation`
+| `string`
+| Human-readable explanation of the result. On failure, contains
+  semicolon-separated error messages.
+
+| `proof_obligations`
+| `string[]`
+| Proof obligations generated during checking. Each entry is a
+  human-readable summary (e.g., `"PO-0000: Refinement: x > 0 on Int"`).
+  Empty if no dependent types are involved.
+
+| `effects`
+| `string[]`
+| Effects detected in the expression. Values correspond to the `Effect`
+  enum: `Pure`, `IO`, `State <s>`, `Except <e>`, `Alloc`, `Diverge`,
+  `Network`, `FileSystem`, or custom named effects.
+
+| `linearity_issues`
+| `string[]`
+| Linearity violations found. Each entry describes a variable that was
+  used too many or too few times relative to its usage quantifier.
+
+| `session_notes`
+| `string[]`
+| Notes about session type compliance. Includes protocol completeness
+  warnings and duality mismatches.
+
+| `features`
+| `string[]`
+| Active type feature codes. Machine-readable tags indicating which
+  type system features were activated (e.g., `dep`, `lin`, `eff`,
+  `proof`, `vql-ut-l7`, `path:query`).
+
+| `usage`
+| `string`
+| The determined usage quantifier: `0` (erased), `1` (linear),
+  `w` (unrestricted), or a decimal integer (bounded).
+
+| `discipline`
+| `string`
+| The type discipline in effect: `affine`, `linear`, `dependent`,
+  `refined`, or `unrestricted`.
+
+| `inference_source`
+| `string`
+| How the type was determined. Values include `inferred`, `checked`,
+  `vql-ut-bridge`, `schema-bridge`, or language-specific identifiers.
+|===
+
+=== HealthResponse
+
+[source,json]
+----
+{
+  "status": "ok",
+  "version": "0.1.0",
+  "features": [
+    "unification", "inference", "dimensional", "linear",
+    "effects", "session", "qtt", "proof-obligations", "vql-ut"
+  ],
+  "languages": [
+    "vql", "schema", "my-lang", "idris2", "constraint",
+    "config", "policy", "game-data", "metadata"
+  ]
+}
+----
+
+[cols="2,1,4"]
+|===
+| Field | Type | Description
+
+| `status`
+| `string`
+| Server status. `"ok"` when operational.
+
+| `version`
+| `string`
+| Server version (from `Cargo.toml`).
+
+| `features`
+| `string[]`
+| Type system features supported by this server instance.
+
+| `languages`
+| `string[]`
+| Languages with dedicated checking bridges.
+|===
+
+=== UsageQuantifier (Wire Format)
+
+Usage quantifiers are serialised with a `kind`/`value` tag:
+
+[source,json]
+----
+{"kind": "Zero"}
+{"kind": "One"}
+{"kind": "Omega"}
+{"kind": "Bounded", "value": 3}
+----
+
+=== ProofObligation (Wire Format)
+
+[source,json]
+----
+{
+  "id": "PO-0000",
+  "description": "Refinement: x > 0 on Int",
+  "proposition": {
+    "PredicateHolds": { "Gt": [{"Var": "x"}, {"Lit": 0}] }
+  },
+  "origin": {
+    "Refinement": {
+      "base_type": "Int",
+      "predicate": "Gt(Var(\"x\"), Lit(0))"
+    }
+  },
+  "status": "Pending"
+}
+----
+
+==== Proposition Variants
+
+[cols="2,4"]
+|===
+| Variant | Description
+
+| `PredicateHolds(Predicate)`
+| A refinement predicate must be provably true.
+
+| `TermEquality(Term, Term)`
+| Two type-level terms must be provably equal.
+
+| `WellFounded(Term)`
+| A term must be well-founded (termination guarantee).
+
+| `DimensionCompatible(String, String)`
+| Two dimensional annotations must be compatible.
+
+| `SessionComplete(String)`
+| A session protocol must reach `End` (no dangling operations).
+
+| `Custom(String)`
+| Escape hatch for domain-specific propositions.
+|===
+
+==== ObligationStatus Variants
+
+[cols="2,4"]
+|===
+| Variant | Description
+
+| `Pending`
+| Not yet attempted. The obligation awaits an external prover.
+
+| `Discharged`
+| Automatically discharged by the built-in decision procedure.
+
+| `ProvedExternally(String)`
+| Discharged by an external prover (e.g., ECHIDNA). The string
+  identifies the prover.
+
+| `Unresolved`
+| Could not be proved. The user must provide a manual proof.
+
+| `Refuted(String)`
+| The proposition was proved false. The program is ill-typed.
+  The string contains the refutation reason.
+|===
+
+== Endpoint Specifications
+
+=== GET /api/v1/health
+
+Returns server status, version, supported features, and supported languages.
+
+*Request:* No body required.
+
+*Response:* `HealthResponse` (200 OK).
+
+*Semantics:* This endpoint MUST always succeed if the server is running. Clients
+use it for service discovery and capability negotiation.
+
+.Example
+[source,bash]
+----
+curl http://localhost:7800/api/v1/health
+----
+
+[source,json]
+----
+{
+  "status": "ok",
+  "version": "0.1.0",
+  "features": ["unification", "inference", "dimensional", "linear",
+                "effects", "session", "qtt", "proof-obligations", "vql-ut"],
+  "languages": ["vql", "schema", "my-lang", "idris2", "constraint",
+                "config", "policy", "game-data", "metadata"]
+}
+----
+
+=== POST /api/v1/check
+
+Bidirectional type checking with language-aware routing. This is the primary
+endpoint consumed by PanLL's `TypeLLService`.
+
+*Request:* `CheckRequest`
+
+*Response:* `CheckResult` (200 OK)
+
+*Semantics:*
+
+. Parse the `context` JSON to determine target language, dialect, and features.
+. Derive the `TypeDiscipline` from the features array.
+. Instantiate a `TypeChecker` with the derived discipline.
+. Route to the appropriate language-specific bridge based on `context.language`.
+. Execute bidirectional type checking (synthesis + checking modes).
+. Return a `CheckResult` with inferred type, proof obligations, effects,
+  linearity issues, and session notes.
+
+*Error conditions:*
+
+- Empty `expression`: returns `CheckResult` with `valid: false` and an
+  "empty expression" error message.
+- Malformed `context` JSON: falls back to default context (generic code,
+  affine discipline).
+- Type errors: returned in `CheckResult.explanation` as semicolon-separated
+  messages. The HTTP status is always 200.
+
+NOTE: Type errors are NOT returned as HTTP error codes. The `CheckResult.valid`
+field indicates success or failure. This design allows batch checking without
+connection-level error handling.
+
+.Example: Dependent type checking
+[source,bash]
+----
+curl -X POST http://localhost:7800/api/v1/check \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "expression": "fn append<n, m>(xs: Vec<n, a>, ys: Vec<m, a>) -> Vec<n+m, a>",
+    "context": "{\"language\":\"code\",\"features\":[\"dependent\",\"linear\"]}"
+  }'
+----
+
+[source,json]
+----
+{
+  "valid": true,
+  "type_signature": "(n : Int, m : Int) -> (Vec<n, a>, Vec<m, a>) -> Vec<(n + m), a>",
+  "explanation": "Expression has type: ...",
+  "proof_obligations": ["PO-0000: Term equality: n + m = n + m in Vec (n + m) a"],
+  "effects": [],
+  "linearity_issues": [],
+  "session_notes": [],
+  "features": ["dep", "lin"],
+  "usage": "1",
+  "discipline": "dependent",
+  "inference_source": "inferred"
+}
+----
+
+=== POST /api/v1/infer
+
+Type inference in synthesis mode. Given an expression without a type
+annotation, synthesise the most general type.
+
+*Request:* `CheckRequest`
+
+*Response:* `CheckResult` (200 OK)
+
+*Semantics:*
+
+. Parse context and instantiate checker (same as `/check`).
+. Run the Hindley-Milner inference engine with QTT extensions.
+. Apply let-generalisation to produce a polymorphic type scheme.
+. Return the inferred type in `CheckResult.type_signature`.
+
+NOTE: The distinction between `/check` and `/infer` is the _direction_ of
+type information flow. `/check` expects a type annotation and verifies the
+expression against it (checking mode). `/infer` synthesises a type from the
+expression alone (synthesis mode). In practice, the server uses bidirectional
+type checking internally, and the endpoint choice selects the primary direction.
+
+=== POST /api/v1/refine
+
+Apply refinement types to a base type.
+
+*Request:* `CheckRequest` with the expression containing a base type and
+refinement predicates.
+
+*Response:* `CheckResult` with `proof_obligations` populated for predicates
+that cannot be automatically discharged.
+
+*Semantics:*
+
+. Parse the refinement expression into a `Type::Refined { base, predicates }`.
+. Attempt to discharge predicates using the built-in decision procedure:
+  - Constant folding (e.g., `5 > 0` is trivially true)
+  - Simple range checks (e.g., `x > 0 && x < 256`)
+  - Contradiction detection (e.g., `x > 5 && x < 3`)
+. Predicates that cannot be discharged are emitted as `ProofObligation` entries
+  with status `Pending`, for ECHIDNA or an SMT solver to handle.
+
+=== POST /api/v1/compute
+
+Type-level computation and normalisation.
+
+*Request:* `CheckRequest` with a type-level expression.
+
+*Response:* `CheckResult` with the normalised type in `type_signature`.
+
+*Semantics:*
+
+Evaluates type-level term arithmetic (addition, subtraction, multiplication,
+division, modulo on `Term` values) and reduces type constructors to normal form.
+Used for dependent type index simplification (e.g., normalising `Vec<(2+3), Int>`
+to `Vec<5, Int>`).
+
+=== GET /api/v1/signatures
+
+List available type signatures in the built-in environment.
+
+*Request:* No body required.
+
+*Response:* JSON array of signature objects.
+
+*Semantics:* Returns the built-in type environment, including primitive type
+signatures, standard library signatures, and any language-specific built-ins
+registered by bridge crates.
+
+=== GET /api/v1/universes
+
+Query the type universe hierarchy.
+
+*Request:* No body required.
+
+*Response:* JSON description of the universe hierarchy.
+
+*Semantics:* Returns the universe levels used by the type system:
+`Type : Type_0`, `Type_0 : Type_1`, etc. This is used by dependent type
+checking to prevent `Type : Type` paradoxes.
+
+=== POST /api/v1/infer-usage
+
+Infer QTT usage quantifiers for variables in an expression.
+
+*Request:* `CheckRequest`
+
+*Response:* `CheckResult` with `usage` set to the inferred quantifier and
+`linearity_issues` populated if violations are detected.
+
+*Semantics:*
+
+. Parse the expression and extract variable bindings.
+. For each binding, determine the usage quantifier by counting occurrences:
+  - 0 occurrences in the body: `Zero` (erased witness)
+  - Exactly 1 occurrence: `One` (linear)
+  - Multiple occurrences: `Omega` (unrestricted) or `Bounded(n)` for exactly `n`
+. Check that inferred quantifiers are compatible with any declared quantifiers.
+. Report linearity violations where declared quantifiers conflict with actual usage.
+
+=== POST /api/v1/check-effects
+
+Effect tracking and purity analysis.
+
+*Request:* `CheckRequest`
+
+*Response:* `CheckResult` with `effects` populated.
+
+*Semantics:*
+
+. Parse the expression and collect all effect annotations from function
+  types and effect-performing operations.
+. Build an `EffectRow` for the expression.
+. Verify that declared effects are a superset of actual effects (effect safety).
+. Report missing effect declarations as errors.
+. A function with an empty effect row is verified as `Pure`.
+
+=== POST /api/v1/check-dimensional
+
+Dimensional analysis for physical unit tracking (ported from Eclexia).
+
+*Request:* `CheckRequest` with expressions involving `Resource<T, D>` types.
+
+*Response:* `CheckResult` with dimensional compatibility results.
+
+*Semantics:*
+
+. Extract `Dimension` annotations from `Type::Resource` types.
+. Verify dimensional compatibility of arithmetic operations:
+  - Addition/subtraction: operands MUST have identical dimensions.
+  - Multiplication: dimensions are multiplied (exponents added).
+  - Division: dimensions are divided (exponents subtracted).
+. Report dimension mismatches as `TypeError::DimensionMismatch`.
+
+=== POST /api/v1/generate-obligations
+
+Extract proof obligations for external provers.
+
+*Request:* `CheckRequest` (typically with `mode: "obligation-generation"` in
+the context).
+
+*Response:* `CheckResult` with `proof_obligations` populated.
+
+*Semantics:*
+
+. Type-check the expression as normal.
+. Collect all `ProofObligation` entries generated during checking:
+  - Refinement predicates that cannot be auto-discharged
+  - Dependent type index equalities
+  - Session completeness requirements
+  - Dimensional compatibility constraints
+. Attempt automatic discharge using the built-in decision procedure.
+. Return remaining obligations with their status.
+
+The returned obligations are designed to be consumed by ECHIDNA or another
+external prover. Each obligation has a unique ID (`PO-NNNN`) for tracking.
+
+=== POST /api/v1/vql-ut/check
+
+VQL-UT 10-level type safety checking.
+
+*Request:* `CheckRequest` with a VQL query expression (either JSON-encoded
+`VqlQueryType` or raw VQL query text).
+
+*Response:* `CheckResult` with VQL-specific annotations.
+
+*Semantics:*
+
+. Parse the expression as a `VqlQueryType` (JSON) or extract VQL features
+  from raw query text.
+. Run the 10-level safety analysis via `determine_safety_level()`.
+. Execute VQL-specific validation rules (consume-after bounds, usage limits,
+  session-effect compatibility).
+. Convert the VQL type to a TypeLL `UnifiedType` via the `typell-vql` bridge.
+. Return a `CheckResult` with:
+  - `explanation` containing the safety level and query path
+  - `features` containing level codes (e.g., `vql-ut-l7`)
+  - `linearity_issues` containing rule validation errors
+  - `proof_obligations` containing failed safety level diagnostics
+
+== Error Codes
+
+TypeLL does not use HTTP error codes for type-checking failures. All responses
+return HTTP 200 with the result encoded in `CheckResult.valid`. The rationale
+is that type errors are expected domain events, not transport failures.
+
+=== TypeError Variants
+
+The following error variants may appear in `CheckResult.explanation`:
+
+[cols="2,4"]
+|===
+| Error | Description
+
+| `Mismatch { expected, found }`
+| Two types could not be unified. Includes the expected and found types
+  and an optional hint.
+
+| `Undefined { name }`
+| An undefined variable or type name was referenced.
+
+| `DimensionMismatch { dim1, dim2 }`
+| Two resource types have incompatible physical dimensions.
+
+| `InfiniteType { var, ty }`
+| Occurs check failure: a type variable occurs in its own solution,
+  producing an infinite type.
+
+| `LinearityViolation { variable, expected, actual }`
+| A QTT usage constraint was violated. The variable was used more or
+  fewer times than its declared quantifier allows.
+
+| `EffectViolation { effect, context }`
+| An effect was performed but not declared in the function's effect row.
+
+| `SessionViolation { protocol, reason }`
+| A session type protocol was not followed correctly.
+
+| `Custom { message }`
+| Catch-all for domain-specific errors from language bridges.
+|===
+
+== Language-Aware Routing
+
+The `/check` endpoint routes to language-specific checking logic based on
+the `language` field in the `CheckContext`. Each language has a dedicated
+bridge crate that translates between the language's AST representation and
+TypeLL's unified `Type` system.
+
+=== Routing Table
+
+[cols="2,2,4"]
+|===
+| Language | Bridge Crate | Notes
+
+| `vql`
+| `typell-vql`
+| VQL-UT 10-level safety analysis. Parses JSON `VqlQueryType` or raw query text.
+
+| `schema`
+| (inline)
+| Schema type checking for data definitions.
+
+| `idris2`
+| (inline)
+| ABI validation for Idris2 interface definitions.
+
+| `policy`
+| (inline)
+| Security policy checking (dependent + linear + proof-carrying).
+
+| `config`
+| (inline)
+| Configuration validation (dependent + refinement).
+
+| `game-data`
+| (inline)
+| Game data structures (dependent + session).
+
+| `constraint`
+| (inline)
+| Constraint validation (e.g., Anti-Crash token checking).
+
+| `metadata`
+| (inline)
+| Metadata type checking.
+
+| `my-lang`, `code`, (default)
+| (inline)
+| Generic code checking with full type system support.
+|===
+
+NOTE: The bridge crate architecture allows new languages to be added by
+implementing a conversion from the language's AST to TypeLL's `Type` enum
+and registering a handler in the routing table.
+
+== Security Considerations
+
+=== Transport Security
+
+TypeLL binds to `127.0.0.1` only. It MUST NOT be exposed to non-loopback
+interfaces without additional authentication and authorisation. The permissive
+CORS policy is acceptable because the server is localhost-only.
+
+=== Input Validation
+
+. The `expression` field MUST be validated for length limits to prevent
+  denial-of-service via pathological type expressions.
+. The `context` field is parsed with `serde_json::from_str` with fallback
+  to defaults on malformed input. No panics should result from invalid input.
+. Type-level computation MUST have recursion depth limits to prevent
+  non-termination from dependent type index evaluation.
+
+=== Proof Obligation Trust
+
+Proof obligations with status `ProvedExternally` carry the identifier of the
+prover. Clients SHOULD verify that the identified prover is trusted before
+accepting the discharge. The TypeLL server itself does not enforce a trust
+policy on external provers.
+
+== Versioning
+
+=== API Versioning
+
+The API is versioned via the URL path prefix (`/api/v1/`). Breaking changes
+to request or response schemas MUST increment the version number. New endpoints
+MAY be added to an existing version without incrementing.
+
+=== Compatibility Guarantees
+
+. The `CheckResult` schema is append-only: new fields MAY be added but
+  existing fields MUST NOT be removed or renamed within a version.
+. New `language` values in the routing table are backward-compatible additions.
+. New `features` values in `CheckContext` are backward-compatible additions.
+
+== References
+
+* TypeLL kernel implementation: `crates/typell-core/`
+* TypeLL server implementation: `crates/typell-server/`
+* PanLL client reference: `TypeLLCmd.res`, `TypeLLService.res`, `TypeLLModel.res`
+* ECHIDNA prover integration: `crates/typell-eclexia/` (planned)
+* Atkey, R. (2018). "Syntax and Semantics of Quantitative Type Theory"
+* Dependent types spec: `spec/type-system/dependent.adoc`
+* Linear types spec: `spec/type-system/linear.adoc`

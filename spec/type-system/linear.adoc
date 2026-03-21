@@ -1,0 +1,733 @@
+// SPDX-License-Identifier: PMPL-1.0-or-later
+// SPDX-FileCopyrightText: Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath)
+//
+// TypeLL Linear Types Specification
+// Phase 1 — Formal substructural typing rules and QTT integration.
+
+= TypeLL Linear Types Specification
+Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+:revnumber: 0.1.0
+:revdate: 2026-03-21
+:revremark: Phase 1 initial specification
+:toc: left
+:toclevels: 4
+:sectnums:
+:sectnumlevels: 4
+:source-highlighter: rouge
+:icons: font
+:experimental:
+:stem: latexmath
+
+== Abstract
+
+This document specifies the substructural type system of the TypeLL
+verification kernel, based on Quantitative Type Theory (QTT). TypeLL tracks
+resource usage at the type level using a semiring of usage quantifiers
+stem:[\{0, 1, \omega, n\}], supporting linear types (use exactly once),
+affine types (use at most once), relevant types (use at least once), and
+unrestricted types (use any number of times). Additionally, TypeLL extends
+the standard QTT semiring with bounded quantifiers (`Bounded(n)`) for
+fine-grained resource control.
+
+The specification maps directly to the Rust implementation in
+`crates/typell-core/src/linear.rs`, `qtt.rs`, and `types.rs`.
+
+== Status
+
+[cols="1,3"]
+|===
+| Status | *Draft*
+| Version | 0.1.0
+| Stability | Experimental
+| Supersedes | None
+| Implementation | `crates/typell-core/src/linear.rs`, `qtt.rs`
+| Related specs | `dependent.adoc`, `TYPELL-PROTOCOL.adoc`
+|===
+
+== Conformance
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD",
+"SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be
+interpreted as described in https://www.rfc-editor.org/rfc/rfc2119[RFC 2119].
+
+== Background: Substructural Type Systems
+
+Classical type systems permit unrestricted use of variables: any variable may
+be used zero times (weakening), one time, or many times (contraction). A
+substructural type system restricts one or both of these structural rules:
+
+[cols="2,1,1,3"]
+|===
+| Discipline | Weakening | Contraction | Semantics
+
+| *Unrestricted*
+| Allowed
+| Allowed
+| Standard functional programming. No usage restrictions.
+
+| *Affine*
+| Allowed
+| Forbidden
+| Use at most once. Values may be discarded but not duplicated.
+  This is Rust's default ownership semantics.
+
+| *Linear*
+| Forbidden
+| Forbidden
+| Use exactly once. Values must be consumed — they cannot be
+  discarded or duplicated. Guarantees resource cleanup.
+
+| *Relevant*
+| Forbidden
+| Allowed
+| Use at least once. Values must be used but may be duplicated.
+  Useful for logging and audit guarantees.
+|===
+
+TypeLL unifies all four disciplines via QTT, where each variable binding
+carries a usage quantifier that determines which structural rules apply.
+
+== The QTT Semiring
+
+=== Quantifier Values
+
+TypeLL's usage quantifiers form a semiring stem:[(Q, +, \cdot, 0, 1)] with
+an additional bounded quantifier for fine-grained control:
+
+[cols="1,2,4"]
+|===
+| Quantifier | Rust | Meaning
+
+| stem:[0]
+| `UsageQuantifier::Zero`
+| Erased at runtime. The variable exists only as a compile-time witness
+  (e.g., a type index or proof term). Any use at runtime is a violation.
+
+| stem:[1]
+| `UsageQuantifier::One`
+| Exactly one use (linear mode) or at most one use (affine mode).
+  The interpretation depends on the type discipline in effect.
+
+| stem:[\omega]
+| `UsageQuantifier::Omega`
+| Unrestricted. The variable may be used any number of times, including
+  zero. This is the default for standard functional programming.
+
+| stem:[n] (bounded)
+| `UsageQuantifier::Bounded(n)`
+| At most stem:[n] uses. A generalisation of affine types:
+  `Bounded(1)` is equivalent to affine, `Bounded(0)` is equivalent to
+  erased. Exceeding the bound is a violation.
+|===
+
+Rust mapping: `types.rs::UsageQuantifier`.
+
+=== Addition Table
+
+The addition of two quantifiers represents the combined usage when a variable
+appears in two sub-expressions:
+
+[cols="1,1,1,1,1"]
+|===
+| stem:[+] | stem:[0] | stem:[1] | stem:[n] | stem:[\omega]
+
+| stem:[0]
+| stem:[0]
+| stem:[1]
+| stem:[n]
+| stem:[\omega]
+
+| stem:[1]
+| stem:[1]
+| stem:[2]^*^
+| stem:[n+1]
+| stem:[\omega]
+
+| stem:[m]
+| stem:[m]
+| stem:[m+1]
+| stem:[m+n]
+| stem:[\omega]
+
+| stem:[\omega]
+| stem:[\omega]
+| stem:[\omega]
+| stem:[\omega]
+| stem:[\omega]
+|===
+
+^*^ `One + One = Bounded(2)` in TypeLL's implementation, reflecting the
+fact that using a linear variable twice yields a bounded-2 usage.
+
+Rust mapping: `UsageQuantifier::add()`.
+
+[source,rust]
+----
+impl UsageQuantifier {
+    pub fn add(&self, other: &Self) -> Self {
+        match (self, other) {
+            (Self::Zero, q) | (q, Self::Zero) => *q,
+            (Self::One, Self::One) => Self::Bounded(2),
+            (Self::One, Self::Bounded(n)) | (Self::Bounded(n), Self::One) => {
+                Self::Bounded(n + 1)
+            }
+            (Self::Bounded(a), Self::Bounded(b)) => Self::Bounded(a + b),
+            _ => Self::Omega,
+        }
+    }
+}
+----
+
+=== Multiplication Table
+
+The multiplication of two quantifiers represents the usage when a variable
+is used under a binder with a specific quantifier:
+
+[cols="1,1,1,1"]
+|===
+| stem:[\cdot] | stem:[0] | stem:[1] | stem:[\omega]
+
+| stem:[0]
+| stem:[0]
+| stem:[0]
+| stem:[0]
+
+| stem:[1]
+| stem:[0]
+| stem:[1]
+| stem:[\omega]
+
+| stem:[\omega]
+| stem:[0]
+| stem:[\omega]
+| stem:[\omega]
+|===
+
+The key insight: multiplying by stem:[0] always yields stem:[0] (erased
+context), and multiplying by stem:[1] is the identity. Any involvement of
+stem:[\omega] (other than with stem:[0]) produces stem:[\omega].
+
+Rust mapping: `qtt.rs::multiply()`.
+
+[source,rust]
+----
+fn multiply(a: &UsageQuantifier, b: &UsageQuantifier) -> UsageQuantifier {
+    match (a, b) {
+        (UsageQuantifier::Zero, _) | (_, UsageQuantifier::Zero) => UsageQuantifier::Zero,
+        (UsageQuantifier::One, q) | (q, UsageQuantifier::One) => *q,
+        _ => UsageQuantifier::Omega,
+    }
+}
+----
+
+=== Compatibility Ordering
+
+The ordering stem:[\le] on quantifiers determines compatibility. A variable
+declared with quantifier stem:[\pi] may be used with actual usage stem:[\rho]
+if stem:[\rho \le \pi]:
+
+[cols="2,4"]
+|===
+| Relationship | Meaning
+
+| stem:[0 \le \pi] for all stem:[\pi]
+| Zero usage is always compatible (never used is always safe).
+
+| stem:[1 \le 1]
+| Linear is compatible with linear.
+
+| stem:[1 \le \omega]
+| Linear is compatible with unrestricted.
+
+| stem:[n \le m] when stem:[n \le m]
+| Bounded-n is compatible with bounded-m when stem:[n \le m].
+
+| stem:[n \le \omega] when stem:[n > 0]
+| Any positive bounded usage is compatible with unrestricted.
+
+| stem:[\omega \le \omega]
+| Unrestricted is compatible with unrestricted.
+|===
+
+Rust mapping: `UsageQuantifier::compatible_with()`.
+
+== Typing Rules
+
+=== Variable Rule
+
+[stem]
+++++
+\frac{
+  (x :^{\pi} A) \in \Gamma
+}{
+  \pi \cdot \Gamma \vdash x : A
+} \quad (\text{VAR})
+++++
+
+Using a variable stem:[x] declared with quantifier stem:[\pi] produces a
+context where stem:[x] has been used stem:[\pi] times, and all other
+variables in the context have been used stem:[0] times.
+
+=== Lambda Abstraction
+
+[stem]
+++++
+\frac{
+  \Gamma, x :^{\pi} A \vdash b : B \quad \dashv \Delta
+}{
+  \Gamma \vdash \lambda(x :^{\pi} A). b : (\pi\;x : A) \to B
+  \quad \dashv \Delta \setminus x
+} \quad (\text{LAM})
+++++
+
+The binder declares stem:[x] with quantifier stem:[\pi]. At scope exit,
+the usage tracker verifies that stem:[x] was used the correct number of times
+according to stem:[\pi] and the type discipline mode (linear vs. affine).
+
+=== Application
+
+[stem]
+++++
+\frac{
+  \Gamma_1 \vdash f : (\pi\;x : A) \to B
+  \quad
+  \Gamma_2 \vdash a : A
+}{
+  \Gamma_1 + \pi \cdot \Gamma_2 \vdash f\;a : B[a/x]
+} \quad (\text{APP})
+++++
+
+The context for the argument stem:[a] is scaled by the function's quantifier
+stem:[\pi]. If stem:[\pi = 0], the argument is erased and its context
+contributes nothing. If stem:[\pi = 1], the argument's context is used
+exactly once.
+
+=== Context Splitting
+
+In a substructural type system, when two sub-expressions share a context,
+the context must be _split_ between them:
+
+[stem]
+++++
+\Gamma = \Gamma_1 + \Gamma_2
+++++
+
+This means that the usages from stem:[\Gamma_1] and stem:[\Gamma_2] are
+added pointwise. If a variable stem:[x] has quantifier stem:[1] (linear)
+in stem:[\Gamma], then stem:[x] must appear in exactly one of stem:[\Gamma_1]
+or stem:[\Gamma_2] (not both, and not neither).
+
+Rust mapping: `QttContext::add()` implements pointwise context addition.
+
+=== Let Binding
+
+[stem]
+++++
+\frac{
+  \Gamma_1 \vdash e_1 : A
+  \quad
+  \Gamma_2, x :^{\pi} A \vdash e_2 : B \quad \dashv \Delta
+}{
+  \Gamma_1 + \pi \cdot \Gamma_2 \vdash \mathbf{let}\;x :^{\pi} A = e_1\;\mathbf{in}\;e_2 : B
+  \quad \dashv \Delta \setminus x
+} \quad (\text{LET})
+++++
+
+The bound variable stem:[x] is declared with quantifier stem:[\pi]. The
+sub-expression stem:[e_1] that produces the value has its context scaled by
+stem:[\pi].
+
+== Usage Tracking
+
+=== The Usage Tracker
+
+The `UsageTracker` (`linear.rs`) monitors variable usage during type checking.
+It maintains a map from variable names to `(declared quantifier, actual use count)`.
+
+[source,rust]
+----
+pub struct UsageTracker {
+    declarations: HashMap<String, (UsageQuantifier, u64)>,
+    affine_mode: bool,
+}
+----
+
+=== Lifecycle
+
+. **Declaration**: When a variable enters scope, `declare(name, quantifier)`
+   registers it with use count 0.
+. **Usage recording**: Each use of the variable calls `record_use(name)`,
+   incrementing the count. An immediate violation is returned if:
+   - The quantifier is `Zero` (any use of an erased variable).
+   - The quantifier is `One` and the count exceeds 1.
+   - The quantifier is `Bounded(n)` and the count exceeds `n`.
+. **Scope exit**: `check_all_consumed()` verifies that all declared variables
+   have been used the correct number of times. In linear mode, a variable
+   with quantifier `One` and use count 0 produces a violation. In affine mode,
+   use count 0 is permitted (weakening is allowed).
+
+=== Violation Types
+
+A `UsageViolation` contains:
+
+[cols="1,3"]
+|===
+| Field | Description
+
+| `variable`
+| The name of the misused variable.
+
+| `expected`
+| The declared `UsageQuantifier`.
+
+| `actual`
+| The observed `UsageQuantifier` (derived from the use count).
+
+| `message`
+| Human-readable description of the violation.
+|===
+
+=== Linear vs. Affine Mode
+
+The `UsageTracker` operates in one of two modes:
+
+[cols="1,2,4"]
+|===
+| Mode | Constructor | Behaviour for `One` quantifier
+
+| **Linear**
+| `UsageTracker::new()`
+| stem:[1] means exactly once. Using zero times is a violation
+  ("linear variable was never consumed").
+
+| **Affine**
+| `UsageTracker::affine()`
+| stem:[1] means at most once. Using zero times is permitted
+  (weakening is allowed). Using twice is still a violation.
+|===
+
+The mode is determined by the `TypeDiscipline` in effect:
+
+- `TypeDiscipline::Linear` => linear mode
+- `TypeDiscipline::Affine` => affine mode
+- `TypeDiscipline::Unrestricted` => no usage tracking
+
+== QTT Contexts
+
+=== The QTT Context
+
+A `QttContext` (`qtt.rs`) maps variable names to their usage quantifiers.
+It supports pointwise operations that lift the semiring to contexts:
+
+[source,rust]
+----
+pub struct QttContext {
+    entries: HashMap<String, UsageQuantifier>,
+}
+----
+
+=== Pointwise Addition
+
+[stem]
+++++
+(\Gamma_1 + \Gamma_2)(x) = \Gamma_1(x) + \Gamma_2(x)
+++++
+
+Used when two sub-expressions both use variables from the same scope. This
+corresponds to context splitting in the typing rules.
+
+Rust mapping: `QttContext::add()`.
+
+=== Scaling
+
+[stem]
+++++
+(\pi \cdot \Gamma)(x) = \pi \cdot \Gamma(x)
+++++
+
+Used when a sub-expression appears under a binder with quantifier stem:[\pi].
+Scaling by stem:[0] erases the entire context.
+
+Rust mapping: `QttContext::scale()`.
+
+=== Compatibility Checking
+
+[stem]
+++++
+\Gamma_{\text{actual}} \le \Gamma_{\text{declared}}
+\iff
+\forall x. \Gamma_{\text{actual}}(x) \le \Gamma_{\text{declared}}(x)
+++++
+
+The `check_against()` method verifies that actual usage is compatible with
+declared constraints on a per-variable basis, returning violations for any
+incompatible entries.
+
+== Interaction with Dependent Types
+
+=== Erased Arguments (Quantifier 0)
+
+In dependently-typed programming, type indices often appear as function
+arguments that are not needed at runtime. QTT handles this naturally:
+
+[source]
+----
+-- The type argument 'a' and length 'n' are erased (quantifier 0)
+head : (0 a : Type) -> (0 n : Nat) -> Vec<n+1, a> -> a
+----
+
+At runtime, `head` receives only the vector. The type checker verifies
+that `a` and `n` are not used computationally in the function body (only
+in type annotations).
+
+Rust mapping: When a Pi type binder has quantifier `Zero`, the variable's
+context contribution is zeroed via `QttContext::scale(&Zero)`.
+
+=== Linear Resource Types
+
+Linear types ensure that resources are properly managed. A file handle with
+quantifier stem:[1] must be closed exactly once:
+
+[source]
+----
+openFile  : (path : String) -> IO (1 Handle)
+readFile  : (1 h : Handle) -> IO (String, 1 Handle)
+closeFile : (1 h : Handle) -> IO ()
+----
+
+The quantifier stem:[1] on `Handle` ensures:
+
+- After `openFile`, the handle must be used (cannot be discarded).
+- After `readFile`, the old handle is consumed and a new one is returned.
+- After `closeFile`, the handle is consumed and cannot be used again.
+
+Violating any of these constraints produces a `UsageViolation`.
+
+=== Session Types and Linearity
+
+Session types (specified in the companion session types document) inherently
+require linear usage — a channel endpoint must be used exactly according to
+the protocol. TypeLL enforces this by assigning quantifier stem:[1] to
+session-typed variables:
+
+[source]
+----
+type BuyProtocol = Send<Item, Recv<Price, Select<{
+    accept: Send<Payment, Recv<Receipt, End>>,
+    reject: End,
+}>>>
+
+-- The channel 'ch' has quantifier 1 (linear)
+buyer : (1 ch : Chan<BuyProtocol>) -> IO ()
+----
+
+Each protocol step consumes the channel and returns a new channel at the
+continuation type, ensuring the protocol is followed exactly.
+
+== Type Discipline Modes
+
+TypeLL supports five type disciplines, selectable per module or per
+checking context:
+
+[cols="2,1,1,3"]
+|===
+| Discipline | Rust | Default Quantifier | Description
+
+| `Affine`
+| `TypeDiscipline::Affine`
+| stem:[1] (at-most-once)
+| Values used at most once. Rust-like ownership semantics.
+  This is the default discipline.
+
+| `Linear`
+| `TypeDiscipline::Linear`
+| stem:[1] (exactly-once)
+| Values used exactly once. Strict resource tracking.
+
+| `Dependent`
+| `TypeDiscipline::Dependent`
+| stem:[\omega]
+| Full dependent types with value-level computation in types.
+  Usage tracking is still available via explicit quantifiers.
+
+| `Refined`
+| `TypeDiscipline::Refined`
+| stem:[\omega]
+| Base types narrowed by predicate constraints (Liquid types).
+  Usage tracking available via explicit quantifiers.
+
+| `Unrestricted`
+| `TypeDiscipline::Unrestricted`
+| stem:[\omega]
+| No usage tracking. Standard types. Escape hatch for legacy code.
+|===
+
+The discipline is determined by the `features` array in the `CheckContext`
+(see `TYPELL-PROTOCOL.adoc`).
+
+== Formal Properties
+
+=== Linearity Preservation (Soundness)
+
+If a well-typed program declares a variable with quantifier stem:[\pi], the
+runtime system MUST ensure the variable is used according to stem:[\pi]:
+
+[stem]
+++++
+\frac{
+  \Gamma, x :^{1} A \vdash e : B
+}{
+  x \text{ is used exactly once in the evaluation of } e
+} \quad (\text{LINEARITY-SOUND})
+++++
+
+This property is enforced by the `UsageTracker`. If a violation is detected,
+the program is rejected at type-checking time.
+
+=== Erasure Correctness
+
+Variables with quantifier stem:[0] do not appear in the erased (runtime)
+program:
+
+[stem]
+++++
+\frac{
+  \Gamma, x :^{0} A \vdash e : B
+}{
+  x \notin \mathrm{FV}(\mathrm{erase}(e))
+} \quad (\text{ERASURE-CORRECT})
+++++
+
+This enables zero-cost dependent types: type indices and proof witnesses
+are erased before code generation, contributing no runtime overhead.
+
+=== Semiring Laws
+
+The quantifier operations satisfy the semiring axioms:
+
+. **Additive identity**: stem:[0 + \pi = \pi = \pi + 0].
+. **Additive commutativity**: stem:[\pi + \rho = \rho + \pi].
+. **Multiplicative identity**: stem:[1 \cdot \pi = \pi = \pi \cdot 1].
+. **Multiplicative zero**: stem:[0 \cdot \pi = 0 = \pi \cdot 0].
+. **Distributivity**: stem:[\pi \cdot (\rho + \sigma) = \pi \cdot \rho + \pi \cdot \sigma].
+
+These laws ensure that context operations (splitting and scaling) are
+well-defined and compositional.
+
+== Comparison with Related Systems
+
+[cols="2,2,4"]
+|===
+| System | Approach | TypeLL Relationship
+
+| **Rust**
+| Affine types via ownership
+| TypeLL's affine mode mirrors Rust's semantics. Variables are
+  consumed on move and may be explicitly dropped (weakening).
+
+| **Idris 2**
+| QTT with stem:[\{0, 1, \omega\}]
+| TypeLL directly adopts Idris 2's QTT semiring and extends it
+  with `Bounded(n)` for more granular control.
+
+| **Linear Haskell**
+| Linearity annotations on arrows
+| TypeLL places linearity on binders (per QTT), not arrows.
+  This is more expressive: a single function can have parameters
+  with different quantifiers.
+
+| **Clean**
+| Uniqueness types
+| Similar motivation (resource management) but different mechanism.
+  TypeLL's approach is more general.
+
+| **AffineScript**
+| Affine + session types
+| AffineScript (a nextgen-languages member) uses TypeLL as its
+  type-checking backend via `typell-affinescript`.
+|===
+
+== Examples
+
+=== Example 1: Linear File Handle
+
+[source]
+----
+discipline linear
+
+let program : IO () = do
+  h <- openFile "data.txt"    -- h :^1 Handle
+  (contents, h') <- readFile h  -- h consumed, h' :^1 Handle
+  putStrLn contents
+  closeFile h'                  -- h' consumed
+----
+
+Usage trace for `h`:
+
+[cols="1,1,2"]
+|===
+| Event | Count | Status
+
+| `declare("h", One)` | 0 | Declared
+| `record_use("h")` at `readFile h` | 1 | OK (first use)
+| `check_all_consumed()` | 1 | OK (exactly once)
+|===
+
+=== Example 2: Erased Type Index
+
+[source]
+----
+discipline dependent
+
+-- 'n' is erased (quantifier 0), used only in the type
+replicate : (0 n : Nat) -> (a : Type) -> a -> Vec<n, a>
+----
+
+Usage trace for `n`:
+
+[cols="1,1,2"]
+|===
+| Event | Count | Status
+
+| `declare("n", Zero)` | 0 | Declared (erased)
+| No runtime uses | 0 | OK (erased variables must not be used)
+|===
+
+=== Example 3: Bounded Usage
+
+[source]
+----
+-- Logger handle may be used at most 3 times before flush
+let log :^Bounded(3) Logger = createLogger()
+log.write("first")    -- count: 1, OK
+log.write("second")   -- count: 2, OK
+log.write("third")    -- count: 3, OK
+log.write("fourth")   -- count: 4, VIOLATION: exceeds Bounded(3)
+----
+
+=== Example 4: Affine Mode (Drop Allowed)
+
+[source]
+----
+discipline affine
+
+let x :^1 Resource = acquire()
+-- x is never used (dropped)
+-- In affine mode: OK (weakening allowed)
+-- In linear mode: VIOLATION ("linear variable was never consumed")
+----
+
+== References
+
+* Rust implementation: `crates/typell-core/src/linear.rs`, `qtt.rs`, `types.rs`
+* Atkey, R. (2018). "Syntax and Semantics of Quantitative Type Theory".
+  In _Proceedings of LICS 2018_.
+* McBride, C. (2016). "I Got Plenty o' Nuttin'".
+  In _A List of Successes That Can Change the World_. LNCS 9600.
+* Brady, E. (2021). "Idris 2: Quantitative Type Theory in Practice".
+  In _Proceedings of ECOOP 2021_.
+* Wadler, P. (1990). "Linear Types Can Change the World!"
+* Walker, D. (2005). "Substructural Type Systems".
+  In _Advanced Topics in Types and Programming Languages_.
+* Protocol specification: `spec/protocol/TYPELL-PROTOCOL.adoc`
+* Dependent types specification: `spec/type-system/dependent.adoc`

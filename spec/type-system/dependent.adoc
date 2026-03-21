@@ -1,0 +1,902 @@
+// SPDX-License-Identifier: PMPL-1.0-or-later
+// SPDX-FileCopyrightText: Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath)
+//
+// TypeLL Dependent Types Specification
+// Phase 1 — Formal typing rules for dependent types in the TypeLL kernel.
+
+= TypeLL Dependent Types Specification
+Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+:revnumber: 0.1.0
+:revdate: 2026-03-21
+:revremark: Phase 1 initial specification
+:toc: left
+:toclevels: 4
+:sectnums:
+:sectnumlevels: 4
+:source-highlighter: rouge
+:icons: font
+:experimental:
+:stem: latexmath
+
+== Abstract
+
+This document specifies the formal typing rules for dependent types in the
+TypeLL verification kernel. TypeLL supports dependent function types (Pi types),
+dependent pair types (Sigma types), type-level term arithmetic, refinement
+types with predicate constraints, universe polymorphism, and proof obligation
+generation. These features are integrated with QTT usage tracking and the
+effect system specified in companion documents.
+
+The specification maps directly to the Rust implementation in
+`crates/typell-core/src/types.rs`, `check.rs`, `unify.rs`, `infer.rs`,
+and `proof.rs`.
+
+== Status
+
+[cols="1,3"]
+|===
+| Status | *Draft*
+| Version | 0.1.0
+| Stability | Experimental
+| Supersedes | None
+| Implementation | `crates/typell-core/` (Rust)
+| Related specs | `linear.adoc`, `TYPELL-PROTOCOL.adoc`
+|===
+
+== Conformance
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD",
+"SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be
+interpreted as described in https://www.rfc-editor.org/rfc/rfc2119[RFC 2119].
+
+== Notation
+
+=== Judgement Forms
+
+[cols="2,4"]
+|===
+| Judgement | Meaning
+
+| stem:[\Gamma \vdash A : \mathsf{Type}]
+| Under context stem:[\Gamma], stem:[A] is a well-formed type.
+
+| stem:[\Gamma \vdash a : A]
+| Under context stem:[\Gamma], term stem:[a] has type stem:[A].
+
+| stem:[\Gamma \vdash A \equiv B : \mathsf{Type}]
+| Types stem:[A] and stem:[B] are definitionally equal under stem:[\Gamma].
+
+| stem:[\Gamma \vdash a \equiv b : A]
+| Terms stem:[a] and stem:[b] are definitionally equal at type stem:[A].
+
+| stem:[\Gamma \vdash A \le B]
+| Type stem:[A] is a subtype of stem:[B] (for refinement types).
+|===
+
+=== Context Operations
+
+[cols="2,4"]
+|===
+| Notation | Meaning
+
+| stem:[\cdot]
+| The empty context.
+
+| stem:[\Gamma, x : A]
+| Context stem:[\Gamma] extended with variable stem:[x] of type stem:[A].
+
+| stem:[B\[a/x\]]
+| Substitution of term stem:[a] for variable stem:[x] in type stem:[B].
+|===
+
+=== Implementation Mapping
+
+Each formal construct maps to a Rust type in `types.rs`:
+
+[cols="2,2"]
+|===
+| Formal | Rust
+
+| stem:[\Pi(x:A).B]
+| `Type::Pi { param_name, param_type, body }`
+
+| stem:[\Sigma(x:A).B]
+| `Type::Sigma { fst_name, fst_type, snd_type }`
+
+| stem:[\forall a. T]
+| `Type::ForAll { vars, body }`
+
+| stem:[\{x : A \mid P(x)\}]
+| `Type::Refined { base, predicates }`
+
+| stem:[\mathsf{Vec}\langle n, A \rangle]
+| `Type::Named { name: "Vec", args: [term_to_type(n), A] }`
+
+| stem:[\mathsf{Type}_i]
+| Universe level stem:[i] (see <<universes>>)
+
+| stem:[t_1 + t_2]
+| `Term::BinOp { op: TermOp::Add, lhs, rhs }`
+|===
+
+== Type Formation Rules
+
+=== Primitive Types
+
+[stem]
+++++
+\frac{}{\Gamma \vdash \mathsf{Bool} : \mathsf{Type}} \quad (\text{TY-BOOL})
+++++
+
+[stem]
+++++
+\frac{}{\Gamma \vdash \mathsf{Int} : \mathsf{Type}} \quad (\text{TY-INT})
+++++
+
+[stem]
+++++
+\frac{}{\Gamma \vdash \mathsf{String} : \mathsf{Type}} \quad (\text{TY-STRING})
+++++
+
+All primitive types listed in `PrimitiveType` (Bool, Int, I8, I16, I32, I64,
+I128, U8, U16, U32, U64, U128, Float, F32, F64, Char, String, Unit, Never)
+are valid types in any context.
+
+Rust mapping: `Type::Primitive(PrimitiveType::*)`.
+
+=== Top and Bottom
+
+[stem]
+++++
+\frac{}{\Gamma \vdash \top : \mathsf{Type}} \quad (\text{TY-TOP})
+++++
+
+[stem]
+++++
+\frac{}{\Gamma \vdash \bot : \mathsf{Type}} \quad (\text{TY-BOTTOM})
+++++
+
+stem:[\top] (`Type::Top`) is the universal supertype. stem:[\bot] (`Type::Bottom`)
+is the empty type, used for impossible branches and exception-only functions.
+
+For any type stem:[A]:
+
+[stem]
+++++
+\Gamma \vdash \bot \le A \le \top
+++++
+
+=== Named Type Constructors
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash A_1 : \mathsf{Type} \quad \cdots \quad \Gamma \vdash A_n : \mathsf{Type}
+}{
+  \Gamma \vdash F\langle A_1, \ldots, A_n \rangle : \mathsf{Type}
+} \quad (\text{TY-NAMED})
+++++
+
+where stem:[F] is a known type constructor of arity stem:[n].
+
+Rust mapping: `Type::Named { name: F, args: [A_1, ..., A_n] }`.
+
+=== Function Types
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash A_1 : \mathsf{Type} \quad \cdots \quad \Gamma \vdash A_n : \mathsf{Type}
+  \quad \Gamma \vdash B : \mathsf{Type}
+  \quad \varepsilon \subseteq \mathsf{Effect}
+}{
+  \Gamma \vdash (A_1, \ldots, A_n) \xrightarrow{\varepsilon} B : \mathsf{Type}
+} \quad (\text{TY-FUN})
+++++
+
+Function types carry an effect set stem:[\varepsilon]. A pure function has
+stem:[\varepsilon = \emptyset].
+
+Rust mapping: `Type::Function { params, ret, effects }`.
+
+== Dependent Function Types (Pi Types)
+
+=== Formation
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash A : \mathsf{Type}_i
+  \quad
+  \Gamma, x : A \vdash B : \mathsf{Type}_j
+}{
+  \Gamma \vdash \Pi(x : A). B : \mathsf{Type}_{\max(i,j)}
+} \quad (\text{PI-FORM})
+++++
+
+A Pi type stem:[\Pi(x:A).B] represents a function where the return type stem:[B]
+may depend on the argument value stem:[x]. When stem:[x] does not appear free in
+stem:[B], this degenerates to the simple function type stem:[A \to B].
+
+Rust mapping: `Type::Pi { param_name: x, param_type: A, body: B }`.
+
+=== Introduction
+
+[stem]
+++++
+\frac{
+  \Gamma, x : A \vdash b : B
+}{
+  \Gamma \vdash \lambda(x : A). b : \Pi(x : A). B
+} \quad (\text{PI-INTRO})
+++++
+
+Lambda abstraction introduces a Pi type. The body stem:[b] is type-checked in
+the context extended with stem:[x : A], and the resulting type stem:[B] may
+mention stem:[x].
+
+=== Elimination
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash f : \Pi(x : A). B
+  \quad
+  \Gamma \vdash a : A
+}{
+  \Gamma \vdash f\;a : B[a/x]
+} \quad (\text{PI-ELIM})
+++++
+
+Function application eliminates a Pi type. The return type is obtained by
+substituting the argument stem:[a] for the parameter stem:[x] in the body
+type stem:[B]. This substitution is the core operation that distinguishes
+dependent types from simple polymorphism.
+
+=== Computation (Beta Reduction)
+
+[stem]
+++++
+\Gamma \vdash (\lambda(x : A). b)\;a \equiv b[a/x] : B[a/x]
+\quad (\beta\text{-PI})
+++++
+
+=== Uniqueness (Eta Expansion)
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash f : \Pi(x : A). B
+  \quad
+  x \notin \mathrm{FV}(f)
+}{
+  \Gamma \vdash f \equiv \lambda(x : A). f\;x : \Pi(x : A). B
+} \quad (\eta\text{-PI})
+++++
+
+Eta expansion ensures that two functions with the same extensional behaviour
+are definitionally equal.
+
+=== Example: Length-Indexed Vectors
+
+The canonical example of Pi types is the `append` function on length-indexed
+vectors:
+
+[source]
+----
+append : Pi(n : Nat). Pi(m : Nat). Pi(a : Type).
+         Vec<n, a> -> Vec<m, a> -> Vec<n + m, a>
+----
+
+In TypeLL's Rust representation:
+
+[source,rust]
+----
+Type::Pi {
+    param_name: "n".into(),
+    param_type: Box::new(Type::Primitive(PrimitiveType::Int)),
+    body: Box::new(Type::Pi {
+        param_name: "m".into(),
+        param_type: Box::new(Type::Primitive(PrimitiveType::Int)),
+        body: Box::new(Type::Function {
+            params: vec![
+                Type::Named {
+                    name: "Vec".into(),
+                    args: vec![/* n */, /* a */],
+                },
+                Type::Named {
+                    name: "Vec".into(),
+                    args: vec![/* m */, /* a */],
+                },
+            ],
+            ret: Box::new(Type::Named {
+                name: "Vec".into(),
+                args: vec![/* n + m */, /* a */],
+            }),
+            effects: vec![],
+        }),
+    }),
+}
+----
+
+The type-level arithmetic `n + m` generates a `ProofObligation` of kind
+`TermEquality` that the result vector's length equals the sum of the input
+lengths.
+
+== Dependent Pair Types (Sigma Types)
+
+=== Formation
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash A : \mathsf{Type}_i
+  \quad
+  \Gamma, x : A \vdash B : \mathsf{Type}_j
+}{
+  \Gamma \vdash \Sigma(x : A). B : \mathsf{Type}_{\max(i,j)}
+} \quad (\text{SIGMA-FORM})
+++++
+
+A Sigma type stem:[\Sigma(x:A).B] represents a pair where the type of the
+second component stem:[B] depends on the value of the first component stem:[x].
+When stem:[x] does not appear free in stem:[B], this degenerates to the
+ordinary product type stem:[A \times B].
+
+Rust mapping: `Type::Sigma { fst_name: x, fst_type: A, snd_type: B }`.
+
+=== Introduction
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash a : A
+  \quad
+  \Gamma \vdash b : B[a/x]
+}{
+  \Gamma \vdash (a, b) : \Sigma(x : A). B
+} \quad (\text{SIGMA-INTRO})
+++++
+
+To construct a dependent pair, the second component stem:[b] must have
+type stem:[B[a/x]] — that is, the type obtained by substituting the
+first component's _value_ into the type of the second component.
+
+=== Elimination (First Projection)
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash p : \Sigma(x : A). B
+}{
+  \Gamma \vdash \pi_1(p) : A
+} \quad (\text{SIGMA-FST})
+++++
+
+=== Elimination (Second Projection)
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash p : \Sigma(x : A). B
+}{
+  \Gamma \vdash \pi_2(p) : B[\pi_1(p)/x]
+} \quad (\text{SIGMA-SND})
+++++
+
+The type of the second projection depends on the first projection's value.
+
+=== Computation
+
+[stem]
+++++
+\Gamma \vdash \pi_1(a, b) \equiv a : A
+\quad (\beta\text{-SIGMA-1})
+++++
+
+[stem]
+++++
+\Gamma \vdash \pi_2(a, b) \equiv b : B[a/x]
+\quad (\beta\text{-SIGMA-2})
+++++
+
+=== Uniqueness (Eta)
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash p : \Sigma(x : A). B
+}{
+  \Gamma \vdash p \equiv (\pi_1(p), \pi_2(p)) : \Sigma(x : A). B
+} \quad (\eta\text{-SIGMA})
+++++
+
+=== Example: Existential Length
+
+A vector of unknown length can be encoded as a dependent pair where the
+first component is the length:
+
+[source]
+----
+SomeVec : Type -> Type
+SomeVec a = Sigma(n : Nat). Vec<n, a>
+----
+
+A value of type `SomeVec Int` might be `(3, [1, 2, 3])`, where `3` is the
+length witness and `[1, 2, 3]` has type `Vec<3, Int>`.
+
+== Type-Level Terms
+
+=== Term Language
+
+TypeLL supports a restricted term language for type-level computation.
+Terms appear as indices in dependent types (e.g., the `n` in `Vec<n, a>`).
+
+[cols="2,2,4"]
+|===
+| Term | Rust | Description
+
+| stem:[n] (integer literal)
+| `Term::Lit(n)`
+| A compile-time integer constant.
+
+| stem:[x] (variable)
+| `Term::Var(x)`
+| A reference to a value-level variable.
+
+| stem:[t_1 \oplus t_2]
+| `Term::BinOp { op, lhs, rhs }`
+| Binary arithmetic: stem:[+, -, \times, \div, \mathop{\%}].
+
+| stem:[f(t_1, \ldots, t_n)]
+| `Term::App { func, args }`
+| Application of a type-level function.
+|===
+
+=== Term Operations
+
+[cols="1,2"]
+|===
+| `TermOp` | Semantics
+
+| `Add` | Integer addition stem:[t_1 + t_2]
+| `Sub` | Integer subtraction stem:[t_1 - t_2]
+| `Mul` | Integer multiplication stem:[t_1 \times t_2]
+| `Div` | Integer division stem:[t_1 \div t_2] (floor division)
+| `Mod` | Integer modulo stem:[t_1 \mathop{\%} t_2]
+|===
+
+=== Term Evaluation
+
+The kernel attempts to reduce terms to normal form at type-checking time.
+A term stem:[t] is _reducible_ if all its sub-terms are literals:
+
+[stem]
+++++
+\frac{
+  \mathrm{eval}(t_1) = n_1 \quad \mathrm{eval}(t_2) = n_2
+}{
+  \mathrm{eval}(t_1 + t_2) = n_1 + n_2
+} \quad (\text{TERM-ADD})
+++++
+
+If a term contains variables, it remains symbolic. Symbolic terms generate
+`ProofObligation::TermEquality` entries when they must be compared for
+equality during type checking.
+
+Rust mapping: `crate::unify::eval_term_to_i64()`.
+
+== Refinement Types
+
+=== Formation
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash A : \mathsf{Type}
+  \quad
+  \Gamma, x : A \vdash P(x) : \mathsf{Prop}
+}{
+  \Gamma \vdash \{x : A \mid P(x)\} : \mathsf{Type}
+} \quad (\text{TY-REFINE})
+++++
+
+A refinement type narrows a base type by a predicate. Only values satisfying
+the predicate inhabit the refined type.
+
+Rust mapping: `Type::Refined { base: A, predicates: [P] }`.
+
+=== Subtyping
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash P(x) \Rightarrow Q(x) \text{ for all } x : A
+}{
+  \Gamma \vdash \{x : A \mid P(x)\} \le \{x : A \mid Q(x)\}
+} \quad (\text{REFINE-SUB})
+++++
+
+A refinement with a stronger predicate is a subtype of one with a weaker
+predicate. Every refined type is a subtype of its base type:
+
+[stem]
+++++
+\Gamma \vdash \{x : A \mid P(x)\} \le A
+++++
+
+=== Predicate Language
+
+The predicate language is defined by the `Predicate` enum:
+
+[cols="2,2,4"]
+|===
+| Predicate | Rust | Meaning
+
+| stem:[t_1 > t_2]
+| `Predicate::Gt(t1, t2)`
+| Greater than
+
+| stem:[t_1 \ge t_2]
+| `Predicate::Gte(t1, t2)`
+| Greater than or equal
+
+| stem:[t_1 < t_2]
+| `Predicate::Lt(t1, t2)`
+| Less than
+
+| stem:[t_1 \le t_2]
+| `Predicate::Lte(t1, t2)`
+| Less than or equal
+
+| stem:[t_1 = t_2]
+| `Predicate::Eq(t1, t2)`
+| Equality
+
+| stem:[t_1 \ne t_2]
+| `Predicate::Neq(t1, t2)`
+| Inequality
+
+| stem:[P_1 \wedge P_2]
+| `Predicate::And(P1, P2)`
+| Logical conjunction
+
+| stem:[P_1 \vee P_2]
+| `Predicate::Or(P1, P2)`
+| Logical disjunction
+
+| stem:[\neg P]
+| `Predicate::Not(P)`
+| Logical negation
+
+| (raw)
+| `Predicate::Raw(s)`
+| Opaque predicate expression (escape hatch)
+|===
+
+=== Decision Procedure
+
+TypeLL includes a lightweight built-in decision procedure for refinement
+predicates (`proof.rs::eval_predicate`). It handles:
+
+. **Constant folding**: If both operands of a comparison are literals,
+  the comparison is evaluated directly. E.g., `5 > 0` is discharged as
+  `PredicateResult::True`.
+
+. **Boolean combinations**: `And`, `Or`, and `Not` are evaluated using
+  short-circuit logic on sub-predicate results.
+
+. **Contradiction detection**: If any conjunct is provably false, the
+  entire `And` is false.
+
+Predicates that cannot be decided by this procedure remain as
+`ObligationStatus::Pending` and are forwarded to ECHIDNA or an SMT solver.
+
+[cols="2,2"]
+|===
+| `PredicateResult` | Meaning
+
+| `True` | Predicate is provably true at compile time
+| `False` | Predicate is provably false (program is ill-typed)
+| `Unknown` | Cannot determine statically; deferred to external prover
+|===
+
+=== Example: Positive Integers
+
+[source]
+----
+type PosInt = {x : Int | x > 0}
+
+fn safeDivide(a : Int, b : PosInt) -> Int
+----
+
+When `safeDivide` is called with a literal argument `safeDivide(10, 5)`, the
+kernel evaluates `5 > 0` to `True` and discharges the obligation automatically.
+When called with a variable `safeDivide(10, n)`, the obligation `n > 0` remains
+pending and must be proved by the caller or an external prover.
+
+[[universes]]
+== Universe Polymorphism
+
+=== Universe Hierarchy
+
+To avoid the logical inconsistency of stem:[\mathsf{Type} : \mathsf{Type}]
+(Girard's paradox), TypeLL uses a cumulative universe hierarchy:
+
+[stem]
+++++
+\mathsf{Type}_0 : \mathsf{Type}_1 : \mathsf{Type}_2 : \cdots
+++++
+
+=== Cumulativity
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash A : \mathsf{Type}_i
+  \quad
+  i \le j
+}{
+  \Gamma \vdash A : \mathsf{Type}_j
+} \quad (\text{CUMUL})
+++++
+
+Every type at universe level stem:[i] is also a type at all higher levels.
+
+=== Universe of Pi and Sigma
+
+The universe level of a Pi or Sigma type is the maximum of its component
+levels (as specified in PI-FORM and SIGMA-FORM above). This ensures that
+large eliminations (returning types from functions) are properly tracked.
+
+=== Current Status
+
+The TypeLL kernel currently uses a simplified universe system. The `/universes`
+endpoint exposes the hierarchy for client inspection. Full universe polymorphism
+with level variables and constraint solving is planned for Phase 2.
+
+== Conversion and Definitional Equality
+
+=== Conversion Rule
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash a : A
+  \quad
+  \Gamma \vdash A \equiv B : \mathsf{Type}
+}{
+  \Gamma \vdash a : B
+} \quad (\text{CONV})
+++++
+
+If a term has type stem:[A] and stem:[A] is definitionally equal to stem:[B],
+then the term also has type stem:[B]. This rule is fundamental to dependent
+type checking — it allows the type checker to normalise types before
+comparing them.
+
+=== Definitional Equality
+
+Definitional equality is the congruence closure of:
+
+. **Alpha equivalence**: Renaming of bound variables.
+. **Beta reduction**: stem:[(\lambda x. b)\;a \equiv b[a/x]].
+. **Eta expansion**: stem:[f \equiv \lambda x. f\;x] (for functions),
+   stem:[p \equiv (\pi_1(p), \pi_2(p))] (for pairs).
+. **Delta unfolding**: Substitution of definitions.
+. **Term arithmetic**: Evaluation of `Term::BinOp` operations on literals.
+
+In the Rust implementation, definitional equality is checked by:
+
+. Normalising both types to weak-head normal form.
+. Comparing structurally.
+. For `Term` indices, attempting `eval_term_to_i64()` and comparing results.
+. If structural comparison fails for symbolic terms, generating a
+  `ProofObligation::TermEquality`.
+
+== Proof Obligations
+
+When the type checker encounters a type equality that it cannot decide
+automatically, it generates a _proof obligation_ — a logical proposition
+that must be proved true for the program to be well-typed.
+
+=== Obligation Types
+
+[cols="2,4"]
+|===
+| Proposition | Generated When
+
+| `PredicateHolds(P)`
+| A refinement type's predicate cannot be statically evaluated.
+
+| `TermEquality(t1, t2)`
+| Two type-level term indices must be equal but contain variables.
+
+| `WellFounded(t)`
+| A recursive definition must be shown to terminate.
+
+| `DimensionCompatible(d1, d2)`
+| Two `Resource` type dimensions must be compatible.
+
+| `SessionComplete(proto)`
+| A session type protocol must reach `End`.
+|===
+
+=== Discharge Pipeline
+
+. The type checker generates obligations via `ObligationCollector`.
+. The built-in decision procedure (`try_discharge_refinements`) attempts
+   to discharge obligations using constant folding and boolean logic.
+. Obligations with status `Pending` are returned to the client.
+. The client (PanLL) MAY forward pending obligations to ECHIDNA or
+   another external prover.
+. Once proved, the obligation status is updated to `ProvedExternally`.
+
+=== Obligation Identifiers
+
+Each obligation receives a unique identifier of the form `PO-NNNN`
+(zero-padded 4-digit sequence number). These identifiers are stable within
+a single checking session and can be used to track discharge status across
+the TypeLL-ECHIDNA boundary.
+
+== Dimensional Types
+
+TypeLL inherits dimensional analysis from Eclexia. Types annotated with
+physical dimensions (`Type::Resource`) undergo compile-time unit checking.
+
+=== Dimension Algebra
+
+Dimensions form an abelian group under multiplication. Each dimension is
+a vector of SI base unit exponents plus extensions:
+
+[source]
+----
+Dimension = (mass, length, time, current, temperature,
+             amount, luminosity, money, carbon, information)
+----
+
+Operations:
+
+[stem]
+++++
+D_1 \cdot D_2 = (m_1 + m_2, l_1 + l_2, t_1 + t_2, \ldots)
+\quad (\text{DIM-MUL})
+++++
+
+[stem]
+++++
+D_1 / D_2 = (m_1 - m_2, l_1 - l_2, t_1 - t_2, \ldots)
+\quad (\text{DIM-DIV})
+++++
+
+[stem]
+++++
+D^n = (m \cdot n, l \cdot n, t \cdot n, \ldots)
+\quad (\text{DIM-POW})
+++++
+
+=== Typing Rules for Resource Types
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash a : \mathsf{Resource}\langle A, D_1 \rangle
+  \quad
+  \Gamma \vdash b : \mathsf{Resource}\langle A, D_2 \rangle
+  \quad
+  D_1 = D_2
+}{
+  \Gamma \vdash a + b : \mathsf{Resource}\langle A, D_1 \rangle
+} \quad (\text{DIM-ADD})
+++++
+
+Addition and subtraction require identical dimensions.
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash a : \mathsf{Resource}\langle A, D_1 \rangle
+  \quad
+  \Gamma \vdash b : \mathsf{Resource}\langle A, D_2 \rangle
+}{
+  \Gamma \vdash a \times b : \mathsf{Resource}\langle A, D_1 \cdot D_2 \rangle
+} \quad (\text{DIM-MUL-EXPR})
+++++
+
+Multiplication composes dimensions.
+
+Rust mapping: `Type::Resource { base, dimension }` with `Dimension` algebra
+in `types.rs`.
+
+== ForAll (Parametric Polymorphism)
+
+=== Formation
+
+[stem]
+++++
+\frac{
+  \Gamma, \alpha_1 : \mathsf{Type}, \ldots, \alpha_n : \mathsf{Type} \vdash A : \mathsf{Type}
+}{
+  \Gamma \vdash \forall \alpha_1 \ldots \alpha_n. A : \mathsf{Type}
+} \quad (\text{FORALL-FORM})
+++++
+
+Rust mapping: `Type::ForAll { vars, body }`.
+
+=== Instantiation
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash e : \forall \alpha. A
+  \quad
+  \Gamma \vdash B : \mathsf{Type}
+}{
+  \Gamma \vdash e\;[B] : A[B/\alpha]
+} \quad (\text{FORALL-INST})
+++++
+
+The type inference engine (`infer.rs`) automatically instantiates ForAll types
+with fresh unification variables, which are then solved by the unifier
+(`unify.rs`).
+
+=== Generalisation
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash e : A
+  \quad
+  \alpha \notin \mathrm{FTV}(\Gamma)
+}{
+  \Gamma \vdash e : \forall \alpha. A
+} \quad (\text{FORALL-GEN})
+++++
+
+Generalisation is applied at `let`-bindings. A type variable that does not
+appear in the context is universally quantified, producing a polymorphic
+type scheme (`TypeScheme { vars, body }`).
+
+== Interaction with Linear Types
+
+Dependent types interact with the QTT system described in `linear.adoc`.
+Every Pi type binder carries an implicit usage quantifier:
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash A : \mathsf{Type}
+  \quad
+  \Gamma, x :^{\pi} A \vdash B : \mathsf{Type}
+}{
+  \Gamma \vdash \Pi(x :^{\pi} A). B : \mathsf{Type}
+} \quad (\text{PI-QTT})
+++++
+
+where stem:[\pi \in \{0, 1, \omega\}] is the usage quantifier for
+stem:[x] in stem:[B].
+
+When stem:[\pi = 0], the variable stem:[x] is erased at runtime — it exists
+only as a type-level witness. This is the standard pattern for implicit
+arguments in dependently-typed programming:
+
+[source]
+----
+-- n is erased (usage 0), used only in the type
+append : Pi(0 n : Nat). Pi(0 m : Nat). Pi(0 a : Type).
+         Vec<n, a> -> Vec<m, a> -> Vec<n + m, a>
+----
+
+See `linear.adoc` for the full QTT specification.
+
+== References
+
+* Rust implementation: `crates/typell-core/src/types.rs`, `check.rs`,
+  `unify.rs`, `infer.rs`, `proof.rs`
+* Martin-Lof, P. (1984). "Intuitionistic Type Theory"
+* Brady, E. (2013). "Idris, a general-purpose dependently typed
+  programming language: Design and implementation"
+* Atkey, R. (2018). "Syntax and Semantics of Quantitative Type Theory"
+* Rondon, P., Kawaguchi, M., Jhala, R. (2008). "Liquid Types"
+* Protocol specification: `spec/protocol/TYPELL-PROTOCOL.adoc`
+* Linear types specification: `spec/type-system/linear.adoc`
