@@ -1,0 +1,506 @@
+// SPDX-License-Identifier: PMPL-1.0-or-later
+// SPDX-FileCopyrightText: Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath)
+//
+// TypeLL Modal Types Specification
+// Phase 1 — Formal specification of modal operators for contextual typing.
+
+= TypeLL Modal Types Specification
+Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+:revnumber: 0.1.0
+:revdate: 2026-03-21
+:revremark: Phase 1 initial specification
+:toc: left
+:toclevels: 4
+:sectnums:
+:sectnumlevels: 4
+:source-highlighter: rouge
+:icons: font
+:experimental:
+:stem: latexmath
+
+== Abstract
+
+This document specifies the modal type system of the TypeLL verification
+kernel. Modal types enrich the type system with a _necessity_ operator
+stem:[\Box_C A] that qualifies a type stem:[A] with a _context_ (or _mode_)
+stem:[C]. This operator is used to express that a value of type stem:[A]
+is valid only within context stem:[C] — for example, within a specific
+transaction, at a particular security level, or during a specific temporal
+phase.
+
+Modal types in TypeLL are interpreted relative to an _accessibility
+relation_ between contexts. A value of type stem:[\Box_C A] can only be
+extracted (unboxed) when the current context is accessible from stem:[C].
+
+The specification maps to planned extensions of the Rust implementation in
+`crates/typell-core/src/types.rs`.
+
+== Status
+
+[cols="1,3"]
+|===
+| Status | *Draft*
+| Version | 0.1.0
+| Stability | Experimental
+| Supersedes | None
+| Implementation | `crates/typell-core/` (planned)
+| Related specs | `session.adoc`, `effects.adoc`, `linear.adoc`, `TYPELL-PROTOCOL.adoc`
+|===
+
+== Conformance
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD",
+"SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be
+interpreted as described in https://www.rfc-editor.org/rfc/rfc2119[RFC 2119].
+
+== Background
+
+Modal logic distinguishes between what _is_ true and what _must_ be true
+(necessity) or _might_ be true (possibility). In type theory, this
+translates to types that are qualified by the _context_ in which they are
+valid.
+
+TypeLL uses modal types for three orthogonal purposes:
+
+. **Transaction scoping**: A value of type stem:[\Box_{\mathsf{tx}} A] is
+  valid only within an active transaction. Extracting it outside a
+  transaction is a type error.
+
+. **Security levels**: A value of type stem:[\Box_{\mathsf{secret}} A] is
+  classified at the "secret" security level. It cannot flow to a
+  "public" context (information flow control).
+
+. **Temporal phases**: A value of type stem:[\Box_{\mathsf{init}} A] is
+  valid only during the initialisation phase. Accessing it after
+  initialisation is a type error.
+
+== Modal Operator Syntax
+
+=== Grammar
+
+[source]
+----
+C ::= tx           -- Transaction scope
+    | security(L)  -- Security level L
+    | phase(P)     -- Temporal phase P
+    | panel(id)    -- PanLL panel scope
+    | custom(name) -- User-defined context
+
+T ::= ...
+    | Box<C, T>    -- Necessity: T valid in context C
+    | Dia<C, T>    -- Possibility: T may be available in context C
+----
+
+=== Implementation Mapping
+
+[cols="2,2,4"]
+|===
+| Formal | Rust (planned) | Description
+
+| stem:[\Box_C A]
+| `Type::Modal { mode: ModalMode, context: C, body: A }`
+| Necessity. A value of type stem:[A] that is valid in context stem:[C].
+  The value MUST be present in stem:[C].
+
+| stem:[\Diamond_C A]
+| `Type::Modal { mode: ModalMode::Possibility, context: C, body: A }`
+| Possibility. A value of type stem:[A] that _may_ be available in
+  context stem:[C]. Used for optional or conditional availability.
+|===
+
+=== Context Kinds
+
+[cols="2,2,4"]
+|===
+| Context | Syntax | Semantics
+
+| **Transaction**
+| `tx`
+| The value is valid only within an active database transaction.
+  It becomes inaccessible after commit or rollback.
+
+| **Security Level**
+| `security(L)` where stem:[L \in \{\mathsf{public}, \mathsf{internal},
+  \mathsf{confidential}, \mathsf{secret}, \mathsf{top\_secret}\}]
+| Information flow control. Values at higher security levels cannot
+  flow to lower levels.
+
+| **Temporal Phase**
+| `phase(P)` where stem:[P \in \{\mathsf{init}, \mathsf{running},
+  \mathsf{shutdown}\}]
+| Lifecycle phase. Values are valid only during specific phases.
+
+| **Panel Scope**
+| `panel(id)`
+| The value is valid only within a specific PanLL panel. Cross-panel
+  access requires explicit transfer.
+
+| **Custom**
+| `custom(name)`
+| User-defined context for domain-specific modal reasoning.
+|===
+
+== Accessibility Relation
+
+=== Definition
+
+The _accessibility relation_ stem:[R] determines when one context can
+access values from another context:
+
+[stem]
+++++
+R \subseteq C \times C
+++++
+
+stem:[R(C_1, C_2)] means "context stem:[C_1] can access values from
+context stem:[C_2]". The unbox operation requires that the current
+context is accessible from the modal context.
+
+=== Transaction Accessibility
+
+[stem]
+++++
+R(\mathsf{tx}, \mathsf{tx}) = \mathsf{true}
+\quad (\text{TX-REFL})
+++++
+
+[stem]
+++++
+R(\mathsf{committed}, \mathsf{tx}) = \mathsf{true}
+\quad (\text{TX-COMMIT-ACCESS})
+++++
+
+[stem]
+++++
+R(\mathsf{public}, \mathsf{tx}) = \mathsf{false}
+\quad (\text{TX-NO-LEAK})
+++++
+
+Values created within a transaction can be accessed within the same
+transaction or after commit. They cannot leak to non-transactional contexts.
+
+=== Security Level Accessibility (No-Read-Up, No-Write-Down)
+
+For security levels, accessibility follows the Bell-LaPadula model:
+
+[stem]
+++++
+R(\mathsf{security}(L_1), \mathsf{security}(L_2)) = (L_1 \ge L_2)
+\quad (\text{SEC-ACCESS})
+++++
+
+A context at a higher security level can access values from lower levels
+(reading up the clearance hierarchy), but values at higher levels cannot
+flow to lower contexts:
+
+[stem]
+++++
+\mathsf{public} \le \mathsf{internal} \le \mathsf{confidential}
+\le \mathsf{secret} \le \mathsf{top\_secret}
+++++
+
+=== Phase Accessibility
+
+Temporal phases form a linear order:
+
+[stem]
+++++
+R(\mathsf{phase}(P_1), \mathsf{phase}(P_2)) = (P_1 \ge P_2)
+\quad (\text{PHASE-ACCESS})
+++++
+
+where stem:[\mathsf{init} \le \mathsf{running} \le \mathsf{shutdown}].
+
+Values from earlier phases remain accessible in later phases (a running
+system can access initialisation data), but values from later phases
+cannot be accessed earlier (initialisation cannot access shutdown state).
+
+=== Panel Accessibility
+
+[stem]
+++++
+R(\mathsf{panel}(\mathsf{id}_1), \mathsf{panel}(\mathsf{id}_2))
+= (\mathsf{id}_1 = \mathsf{id}_2) \vee \mathsf{shared}(\mathsf{id}_1, \mathsf{id}_2)
+\quad (\text{PANEL-ACCESS})
+++++
+
+Panel contexts are isolated by default. Cross-panel access requires
+an explicit sharing declaration in the PanLL workspace manifest.
+
+== Typing Rules
+
+=== Box Introduction (Necessity)
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash_C a : A
+}{
+  \Gamma \vdash \mathsf{box}_C\;a : \Box_C A
+} \quad (\text{BOX-INTRO})
+++++
+
+To introduce a boxed value, the expression stem:[a] must type-check in
+context stem:[C]. The judgement stem:[\Gamma \vdash_C a : A] means "under
+context stem:[C] and typing environment stem:[\Gamma], term stem:[a] has
+type stem:[A]".
+
+=== Box Elimination (Unbox)
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash e : \Box_C A
+  \quad
+  R(C_{\mathsf{cur}}, C)
+}{
+  \Gamma \vdash_{C_{\mathsf{cur}}} \mathsf{unbox}\;e : A
+} \quad (\text{BOX-ELIM})
+++++
+
+To extract a value from a box, the current context stem:[C_{\mathsf{cur}}]
+must be accessible from the box's context stem:[C] (i.e.,
+stem:[R(C_{\mathsf{cur}}, C)] holds). If the accessibility relation does
+not hold, the unbox is a type error.
+
+=== Diamond Introduction (Possibility)
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash_C a : A
+}{
+  \Gamma \vdash \mathsf{dia}_C\;a : \Diamond_C A
+} \quad (\text{DIA-INTRO})
+++++
+
+=== Diamond Elimination
+
+[stem]
+++++
+\frac{
+  \Gamma_1 \vdash e : \Diamond_C A
+  \quad
+  \Gamma_2, x :^{\pi} A \vdash_{C'} b : B
+  \quad
+  R(C', C)
+}{
+  \Gamma_1 + \Gamma_2 \vdash_{C'}
+  \mathsf{let}\;\Diamond x = e\;\mathsf{in}\;b : B
+} \quad (\text{DIA-ELIM})
+++++
+
+Eliminating a possibility requires being in a context accessible from the
+diamond's context. The extracted value stem:[x] is bound with quantifier
+stem:[\pi] (subject to QTT tracking).
+
+=== Context Subsumption
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash e : \Box_C A
+  \quad
+  R(C', C)
+}{
+  \Gamma \vdash e : \Box_{C'} A
+} \quad (\text{CTX-SUB})
+++++
+
+If context stem:[C'] is accessible from stem:[C], then a boxed value valid
+in stem:[C] is also valid in stem:[C']. This enables coercion along the
+accessibility relation.
+
+== Type Visibility Constraints
+
+=== Visibility Rules
+
+The modal system enforces _visibility constraints_ on types. A type
+stem:[\Box_C A] restricts where values of type stem:[A] can be observed:
+
+[cols="2,4"]
+|===
+| Constraint | Description
+
+| **No Leak**
+| A value of type stem:[\Box_{\mathsf{secret}} A] cannot be assigned to a
+  variable of type stem:[A] in a public context. The box must remain intact
+  or be explicitly declassified.
+
+| **No Forge**
+| A value of type stem:[\Box_{\mathsf{tx}} A] cannot be constructed outside
+  an active transaction. The box introduction rule requires the current
+  context to be stem:[\mathsf{tx}].
+
+| **Monotonic Phase**
+| A value of type stem:[\Box_{\mathsf{init}} A] can be accessed during
+  initialisation and later phases, but a value of type
+  stem:[\Box_{\mathsf{shutdown}} A] cannot be accessed during initialisation.
+|===
+
+=== Declassification
+
+Explicit declassification allows controlled crossing of modal boundaries:
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash e : \Box_C A
+  \quad
+  \mathsf{declassify\_authority}(C, C')
+}{
+  \Gamma \vdash \mathsf{declassify}_{C \to C'}\;e : \Box_{C'} A
+} \quad (\text{DECLASS})
+++++
+
+Declassification requires a _declassification authority_ — a capability that
+permits crossing the modal boundary. This prevents accidental information
+leaks while allowing controlled downgrades.
+
+NOTE: Declassification generates a proof obligation that can be audited.
+
+== Interaction with PanLL Panels
+
+=== Panel-Scoped Types
+
+In the PanLL workspace, each panel operates in its own modal context. Data
+types within a panel are implicitly boxed with the panel's context:
+
+[source]
+----
+-- In panel "type-checker":
+let result : Box<panel("type-checker"), CheckResult> = ...
+
+-- In panel "proof-assistant":
+-- Cannot access 'result' without panel sharing
+let x = unbox result  -- ERROR: panel("proof-assistant") ≠ panel("type-checker")
+----
+
+=== Cross-Panel Transfer
+
+To transfer data between panels, an explicit transfer operation is required:
+
+[source]
+----
+-- Declared in the PanLL manifest as shared
+transfer : Box<panel(src), A> -> {PanelIO} Box<panel(dst), A>
+----
+
+The transfer operation:
+
+. Verifies that the source and destination panels have a sharing
+  declaration in the workspace manifest.
+. Performs serialisation/deserialisation across the panel boundary.
+. Records the transfer in the audit log.
+. Returns the value boxed in the destination panel's context.
+
+=== Panel Isolation Guarantees
+
+[stem]
+++++
+\frac{
+  \neg\;\mathsf{shared}(\mathsf{id}_1, \mathsf{id}_2)
+}{
+  \neg\;R(\mathsf{panel}(\mathsf{id}_1), \mathsf{panel}(\mathsf{id}_2))
+} \quad (\text{PANEL-ISOLATE})
+++++
+
+Without an explicit sharing declaration, panels are completely isolated.
+This is the default security posture for PanLL workspaces.
+
+== Examples
+
+=== Example 1: Transaction-Scoped Value
+
+[source]
+----
+type TxBalance = Box<tx, Int>
+
+-- Create a transactional balance
+withBalance : () -> {State DB, IO} TxBalance
+withBalance () = do
+  beginTx
+  balance <- query "SELECT balance FROM accounts WHERE id = 1"
+  pure (box_tx balance)
+
+-- Extract the balance (only valid within a transaction)
+spend : (1 b : TxBalance) -> {State DB} Int
+spend b = unbox b  -- OK: current context is tx
+----
+
+=== Example 2: Security-Level Classification
+
+[source]
+----
+type Secret<A>      = Box<security(secret), A>
+type Confidential<A> = Box<security(confidential), A>
+type Public<A>       = Box<security(public), A>
+
+-- A classified API key
+apiKey : Secret<String>
+
+-- Cannot declassify without authority
+leakKey : () -> Public<String>
+leakKey () = unbox apiKey  -- ERROR: public < secret
+
+-- Explicit declassification with authority
+auditedReveal : (auth : DeclassAuthority) -> Public<String>
+auditedReveal auth = declassify_{secret -> public} apiKey
+  -- Generates proof obligation: "declassification of Secret to Public"
+----
+
+=== Example 3: Temporal Phase Enforcement
+
+[source]
+----
+type InitConfig = Box<phase(init), Config>
+
+-- Load configuration during initialisation
+loadConfig : () -> {IO, phase(init)} InitConfig
+loadConfig () = box_init (readConfigFile "app.toml")
+
+-- Access configuration during runtime
+useConfig : (cfg : InitConfig) -> {phase(running)} String
+useConfig cfg = (unbox cfg).appName
+  -- OK: running >= init, so R(running, init) holds
+
+-- Cannot access shutdown data during init
+type ShutdownHook = Box<phase(shutdown), () -> IO ()>
+earlyShutdown : (hook : ShutdownHook) -> {phase(init)} ()
+earlyShutdown hook = (unbox hook) ()
+  -- ERROR: init < shutdown, R(init, shutdown) does not hold
+----
+
+=== Example 4: PanLL Panel Isolation
+
+[source]
+----
+-- Panel "editor": editing context
+let document : Box<panel("editor"), Document> = ...
+
+-- Panel "preview": rendering context
+-- Cannot directly access the editor's document
+let preview = renderDocument (unbox document)
+  -- ERROR: panel("preview") cannot access panel("editor")
+
+-- With sharing declaration in manifest:
+-- panels: { editor <-> preview: [Document] }
+let preview = renderDocument (unbox (transfer document))
+  -- OK: explicit transfer with declared sharing
+----
+
+== References
+
+* Planned Rust implementation: `crates/typell-core/src/types.rs`
+* Pfenning, F., Davies, R. (2001). "A Judgmental Reconstruction of Modal
+  Logic". _Mathematical Structures in Computer Science_, 11(4).
+* Nanevski, A., Pfenning, F., Pientka, B. (2008). "Contextual Modal Type
+  Theory". _ACM TOPLAS_, 30(3).
+* Davies, R., Pfenning, F. (2001). "A Modal Analysis of Staged
+  Computation". _Journal of the ACM_, 48(3).
+* Bell, D.E., LaPadula, L.J. (1973). "Secure Computer Systems:
+  Mathematical Foundations". MITRE Technical Report.
+* Linear types specification: `spec/type-system/linear.adoc`
+* Session types specification: `spec/type-system/session.adoc`
+* Effect system specification: `spec/type-system/effects.adoc`
+* Protocol specification: `spec/protocol/TYPELL-PROTOCOL.adoc`

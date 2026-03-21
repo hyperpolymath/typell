@@ -1,0 +1,577 @@
+// SPDX-License-Identifier: PMPL-1.0-or-later
+// SPDX-FileCopyrightText: Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath)
+//
+// TypeLL Effect System Specification
+// Phase 1 — Formal specification of the row-polymorphic effect system.
+
+= TypeLL Effect System Specification
+Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+:revnumber: 0.1.0
+:revdate: 2026-03-21
+:revremark: Phase 1 initial specification
+:toc: left
+:toclevels: 4
+:sectnums:
+:sectnumlevels: 4
+:source-highlighter: rouge
+:icons: font
+:experimental:
+:stem: latexmath
+
+== Abstract
+
+This document specifies the algebraic effect system of the TypeLL verification
+kernel. TypeLL tracks computational effects as part of function types,
+ensuring that side effects are declared, propagated, and handled correctly.
+The system uses _row-polymorphic_ effect annotations: each function carries
+an effect row enumerating the effects it may perform, and effect handlers
+eliminate effects from the row.
+
+The specification maps directly to the Rust implementation in
+`crates/typell-core/src/effects.rs` and `types.rs`.
+
+== Status
+
+[cols="1,3"]
+|===
+| Status | *Draft*
+| Version | 0.1.0
+| Stability | Experimental
+| Supersedes | None
+| Implementation | `crates/typell-core/src/effects.rs`, `types.rs`
+| Related specs | `linear.adoc`, `dependent.adoc`, `session.adoc`, `TYPELL-PROTOCOL.adoc`
+|===
+
+== Conformance
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD",
+"SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be
+interpreted as described in https://www.rfc-editor.org/rfc/rfc2119[RFC 2119].
+
+== Effect Algebra
+
+=== Effect Variants
+
+The effect language is defined by the `Effect` enum in `types.rs`. Each
+variant represents a category of side effect:
+
+[cols="2,2,4"]
+|===
+| Effect | Rust | Description
+
+| stem:[\mathsf{Pure}]
+| `Effect::Pure`
+| No side effects. A pure computation always produces the same result
+  for the same inputs and has no observable effects.
+
+| stem:[\mathsf{IO}]
+| `Effect::IO`
+| General input/output. Reads from or writes to the external world.
+
+| stem:[\mathsf{State}\langle s \rangle]
+| `Effect::State(s)`
+| Thread-local mutable state parameterised by state type stem:[s].
+
+| stem:[\mathsf{Except}\langle e \rangle]
+| `Effect::Except(e)`
+| May throw an exception of type stem:[e].
+
+| stem:[\mathsf{Alloc}]
+| `Effect::Alloc`
+| Performs heap allocation.
+
+| stem:[\mathsf{Diverge}]
+| `Effect::Diverge`
+| May not terminate (non-termination as an effect).
+
+| stem:[\mathsf{Network}]
+| `Effect::Network`
+| Performs network I/O (TCP, UDP, DNS lookups).
+
+| stem:[\mathsf{FileSystem}]
+| `Effect::FileSystem`
+| Reads from or writes to the file system.
+
+| stem:[\mathsf{Named}(n)]
+| `Effect::Named(n)`
+| User-defined named effect for custom effect handlers.
+|===
+
+=== Effect Hierarchy
+
+Some effects imply others. The following subsumption relationships hold:
+
+[stem]
+++++
+\mathsf{Network} \le \mathsf{IO}
+\quad
+\mathsf{FileSystem} \le \mathsf{IO}
+++++
+
+NOTE: Full effect subsumption is planned for Phase 2. The current
+implementation uses set-based containment without implicit subsumption.
+
+== Effect Rows
+
+=== Definition
+
+An _effect row_ is a (possibly open) set of effects that a computation may
+perform:
+
+[stem]
+++++
+\varepsilon ::= \{E_1, E_2, \ldots, E_n\}
+\quad | \quad
+\{E_1, \ldots, E_n \mid \rho\}
+++++
+
+where stem:[\rho] is an _effect row variable_ that represents additional
+unknown effects. A closed row (without stem:[\rho]) enumerates all effects
+exhaustively. An open row (with stem:[\rho]) permits additional effects.
+
+Rust mapping: `EffectRow { effects: HashSet<String>, open: bool }`.
+
+=== Pure Row
+
+The empty closed row represents a pure computation:
+
+[stem]
+++++
+\varepsilon_{\mathsf{pure}} = \{\}
+\quad (\text{PURE})
+++++
+
+[source,rust]
+----
+pub fn pure() -> Self {
+    Self { effects: HashSet::new(), open: false }
+}
+----
+
+A function is pure if and only if its effect row is stem:[\varepsilon_{\mathsf{pure}}].
+
+=== Subrow Relation
+
+The subrow relation stem:[\varepsilon_1 \subseteq \varepsilon_2] holds when
+every effect in stem:[\varepsilon_1] is also in stem:[\varepsilon_2]:
+
+[stem]
+++++
+\frac{
+  \forall E \in \varepsilon_1.\; E \in \varepsilon_2
+}{
+  \varepsilon_1 \subseteq \varepsilon_2
+} \quad (\text{SUBROW-CLOSED})
+++++
+
+For open rows, any closed row is a subrow of an open row:
+
+[stem]
+++++
+\frac{
+  \varepsilon_2 \text{ is open}
+}{
+  \varepsilon_1 \subseteq \varepsilon_2
+} \quad (\text{SUBROW-OPEN})
+++++
+
+Rust mapping: `EffectRow::is_subrow_of()`.
+
+[source,rust]
+----
+pub fn is_subrow_of(&self, other: &EffectRow) -> bool {
+    if other.open {
+        true  // Open rows accept any effects
+    } else {
+        self.effects.is_subset(&other.effects)
+    }
+}
+----
+
+== Typing Rules
+
+=== Effect-Annotated Function Types
+
+Function types in TypeLL carry an effect row:
+
+[stem]
+++++
+(A_1, \ldots, A_n) \xrightarrow{\varepsilon} B
+++++
+
+This denotes a function that takes arguments of types stem:[A_1, \ldots, A_n],
+may perform effects in stem:[\varepsilon], and returns a value of type stem:[B].
+
+Rust mapping: `Type::Function { params, ret, effects }`.
+
+=== Effect Safety (Checking Rule)
+
+A function's _discovered_ effects (the effects actually performed in the
+body) MUST be a subrow of its _declared_ effects:
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash e : A \;\dashv\; \varepsilon_{\mathsf{disc}}
+  \quad
+  \varepsilon_{\mathsf{disc}} \subseteq \varepsilon_{\mathsf{decl}}
+}{
+  \Gamma \vdash e : A \;@\; \varepsilon_{\mathsf{decl}}
+} \quad (\text{EFF-SAFE})
+++++
+
+If the discovered effects contain an effect not in the declared row, a
+`TypeError::UndeclaredEffect` is raised.
+
+Rust mapping: `effects.rs::check_effects()`.
+
+[source,rust]
+----
+pub fn check_effects(
+    declared: &[Effect],
+    discovered: &[Effect],
+    span: Span,
+) -> TypeResult<Vec<Effect>> {
+    let declared_row = EffectRow::closed(declared.to_vec());
+    let mut undeclared = Vec::new();
+    for effect in discovered {
+        let name = effect.to_string();
+        if !declared_row.effects.contains(&name) {
+            undeclared.push(effect.clone());
+        }
+    }
+    if undeclared.is_empty() {
+        Ok(Vec::new())
+    } else {
+        Err(TypeError::UndeclaredEffect {
+            span,
+            effect: undeclared[0].clone(),
+            hint: Some(format!(
+                "add {{{}}} to the function's effect signature",
+                undeclared.iter().map(|e| e.to_string())
+                    .collect::<Vec<_>>().join(", ")
+            )),
+        })
+    }
+}
+----
+
+=== Pure Functions
+
+A function with an empty effect row is _pure_:
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash e : A \;\dashv\; \{\}
+}{
+  \Gamma \vdash e : A \;@\; \mathsf{Pure}
+} \quad (\text{EFF-PURE})
+++++
+
+Pure functions may be called from any context. They are referentially
+transparent and may be safely memoised, parallelised, or reordered.
+
+=== Effect Propagation
+
+When a function stem:[f] with effects stem:[\varepsilon_f] calls a function
+stem:[g] with effects stem:[\varepsilon_g], the resulting effects are the
+union:
+
+[stem]
+++++
+\frac{
+  \Gamma_1 \vdash f : A \xrightarrow{\varepsilon_f} B
+  \quad
+  \Gamma_2 \vdash g : B \xrightarrow{\varepsilon_g} C
+}{
+  \Gamma_1 + \Gamma_2 \vdash g \circ f : A \xrightarrow{\varepsilon_f \cup \varepsilon_g} C
+} \quad (\text{EFF-COMP})
+++++
+
+Effects propagate upward through the call stack. An effect that is never
+handled must appear in the top-level effect signature.
+
+=== Effectful Application
+
+[stem]
+++++
+\frac{
+  \Gamma_1 \vdash f : (A) \xrightarrow{\varepsilon} B
+  \quad
+  \Gamma_2 \vdash a : A
+}{
+  \Gamma_1 + \Gamma_2 \vdash f\;a : B \;\dashv\; \varepsilon
+} \quad (\text{EFF-APP})
+++++
+
+Applying an effectful function produces a computation with the function's
+declared effects.
+
+== Row-Polymorphic Effects
+
+=== Effect Variables
+
+An effect-polymorphic function uses an open effect row with a row variable:
+
+[source]
+----
+-- 'e' is an effect row variable
+map : {e} (a -> {e} b) -> List<a> -> {e} List<b>
+----
+
+This function works with any effect: if the mapping function is pure,
+`map` is pure; if it performs IO, `map` performs IO.
+
+=== Row Instantiation
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash f : A \xrightarrow{\{E_1, \ldots, E_n \mid \rho\}} B
+  \quad
+  \rho \mapsto \varepsilon'
+}{
+  \Gamma \vdash f : A \xrightarrow{\{E_1, \ldots, E_n\} \cup \varepsilon'} B
+} \quad (\text{ROW-INST})
+++++
+
+Instantiating a row variable replaces it with a concrete set of effects.
+
+NOTE: Full row-polymorphic effect unification with effect variables is
+planned for Phase 2. The current implementation uses `EffectRow::open` as a
+boolean flag without named row variables.
+
+== Effect Handling
+
+=== Handle Operation
+
+An effect handler eliminates specific effects from the row:
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash e : A \;\dashv\; \varepsilon \cup \{E\}
+  \quad
+  h : \text{handler for } E
+}{
+  \Gamma \vdash \mathsf{handle}\;e\;\mathsf{with}\;h : A \;\dashv\; \varepsilon
+} \quad (\text{EFF-HANDLE})
+++++
+
+Handling effect stem:[E] removes it from the effect row. The handler stem:[h]
+provides implementations for the effect's operations.
+
+Rust mapping: `EffectRow::handle()`.
+
+[source,rust]
+----
+pub fn handle(&self, handled: &[Effect]) -> Self {
+    let handled_names: HashSet<String> =
+        handled.iter().map(|e| e.to_string()).collect();
+    Self {
+        effects: self.effects.difference(&handled_names).cloned().collect(),
+        open: self.open,
+    }
+}
+----
+
+=== Mask Operation
+
+The mask operation is the inverse of handle — it adds effects to the row:
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash e : A \;\dashv\; \varepsilon
+}{
+  \Gamma \vdash \mathsf{mask}\;E\;\mathsf{in}\;e : A \;\dashv\; \varepsilon \cup \{E\}
+} \quad (\text{EFF-MASK})
+++++
+
+Masking is used when a pure function needs to be passed to a context that
+expects an effectful function (effect widening).
+
+== Merge and Composition
+
+=== Row Merge
+
+The merge of two effect rows is their union:
+
+[stem]
+++++
+\varepsilon_1 \cup \varepsilon_2 = \{E \mid E \in \varepsilon_1 \vee E \in \varepsilon_2\}
+\quad (\text{ROW-MERGE})
+++++
+
+If either row is open, the merged row is open:
+
+[source,rust]
+----
+pub fn merge(&self, other: &EffectRow) -> Self {
+    Self {
+        effects: self.effects.union(&other.effects).cloned().collect(),
+        open: self.open || other.open,
+    }
+}
+----
+
+=== Sequential Composition
+
+When two effectful computations are sequenced, their effects are merged:
+
+[stem]
+++++
+\frac{
+  \Gamma_1 \vdash e_1 : A \;\dashv\; \varepsilon_1
+  \quad
+  \Gamma_2, x : A \vdash e_2 : B \;\dashv\; \varepsilon_2
+}{
+  \Gamma_1 + \Gamma_2 \vdash
+  \mathbf{let}\;x = e_1\;\mathbf{in}\;e_2 : B \;\dashv\; \varepsilon_1 \cup \varepsilon_2
+} \quad (\text{EFF-SEQ})
+++++
+
+=== Conditional Effects
+
+Both branches of a conditional MUST be analysed, and the resulting effect
+row is the merge of both branches:
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash e_1 : A \;\dashv\; \varepsilon_1
+  \quad
+  \Gamma \vdash e_2 : A \;\dashv\; \varepsilon_2
+}{
+  \Gamma \vdash \mathbf{if}\;c\;\mathbf{then}\;e_1\;\mathbf{else}\;e_2 : A
+  \;\dashv\; \varepsilon_1 \cup \varepsilon_2
+} \quad (\text{EFF-IF})
+++++
+
+This is a conservative approximation: even if only one branch performs
+an effect, the overall computation is considered effectful.
+
+== Interaction with Other Type Features
+
+=== Effects and Linear Types
+
+Effectful operations on linear resources must respect linearity:
+
+[source]
+----
+-- The file handle 'h' is linear (quantifier 1)
+-- The function performs IO and FileSystem effects
+readLine : (1 h : Handle) -> {IO, FileSystem} (String, 1 Handle)
+----
+
+The effect system and linear type system are orthogonal: effects track
+_what_ a computation does, while linearity tracks _how many times_
+resources are consumed.
+
+=== Effects and Session Types
+
+Session type operations are inherently effectful. Each send or receive
+performs communication:
+
+[source]
+----
+send : (1 ch : Chan<Send<A, S>>) -> (v : A) -> {IO} (1 Chan<S>)
+recv : (1 ch : Chan<Recv<A, S>>) -> {IO} (A, 1 Chan<S>)
+----
+
+The IO effect captures the fact that communication is a side effect. Effect
+handlers cannot eliminate IO from session type operations — the communication
+must actually occur.
+
+=== Effects and Dependent Types
+
+Type-level computations are always pure. The effect system MUST ensure
+that effectful computations do not appear in type-level positions:
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash e : \mathsf{Type} \;\dashv\; \varepsilon
+  \quad
+  \varepsilon \ne \{\}
+}{
+  \text{violation: effectful type-level computation}
+} \quad (\text{EFF-TYPE-LEVEL})
+++++
+
+== Examples
+
+=== Example 1: Pure Function
+
+[source]
+----
+-- No effects declared — the function is pure
+add : (x : Int, y : Int) -> {} Int
+add x y = x + y
+----
+
+The effect row is empty. The type checker verifies that the body performs
+no effects (no IO, no state mutation, no allocation).
+
+=== Example 2: IO Function
+
+[source]
+----
+greet : (name : String) -> {IO} ()
+greet name = putStrLn ("Hello, " ++ name)
+----
+
+The function declares the `IO` effect. The call to `putStrLn` performs IO,
+which is contained within the declared row.
+
+=== Example 3: Effect Handling
+
+[source]
+----
+-- Computation with State effect
+increment : () -> {State Int} Int
+increment () = do
+  n <- get
+  put (n + 1)
+  pure (n + 1)
+
+-- Handle the State effect, providing an initial state
+runIncrement : Int -> (Int, Int)
+runIncrement init = handle (increment ()) with
+  StateHandler { initial: init }
+----
+
+The `handle` block eliminates the `State Int` effect, producing a pure
+computation (no effects remain).
+
+=== Example 4: Undeclared Effect Error
+
+[source]
+----
+-- Declared as pure, but calls an IO function
+broken : (x : Int) -> {} Int
+broken x = do
+  putStrLn "side effect!"  -- ERROR: IO not declared
+  pure x
+----
+
+The type checker discovers an `IO` effect that is not in the declared row.
+It raises `TypeError::UndeclaredEffect` with the hint:
+`"add {IO} to the function's effect signature"`.
+
+== References
+
+* Rust implementation: `crates/typell-core/src/effects.rs`, `types.rs`
+* Plotkin, G., Pretnar, M. (2009). "Handlers of Algebraic Effects".
+  In _Proceedings of ESOP '09_.
+* Leijen, D. (2017). "Type Directed Compilation of Row-Typed Algebraic
+  Effects". In _Proceedings of POPL '17_.
+* Bauer, A., Pretnar, M. (2015). "Programming with Algebraic Effects and
+  Handlers". _Journal of Logical and Algebraic Methods in Programming_,
+  84(1).
+* Hillerström, D., Lindley, S. (2016). "Liberating Effects with Rows and
+  Handlers". In _Proceedings of TyDe '16_.
+* Linear types specification: `spec/type-system/linear.adoc`
+* Session types specification: `spec/type-system/session.adoc`
+* Protocol specification: `spec/protocol/TYPELL-PROTOCOL.adoc`

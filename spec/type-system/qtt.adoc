@@ -1,0 +1,578 @@
+// SPDX-License-Identifier: PMPL-1.0-or-later
+// SPDX-FileCopyrightText: Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath)
+//
+// TypeLL Quantitative Type Theory Specification
+// Phase 1 — Formal specification of the QTT semiring and context operations.
+
+= TypeLL Quantitative Type Theory Specification
+Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+:revnumber: 0.1.0
+:revdate: 2026-03-21
+:revremark: Phase 1 initial specification
+:toc: left
+:toclevels: 4
+:sectnums:
+:sectnumlevels: 4
+:source-highlighter: rouge
+:icons: font
+:experimental:
+:stem: latexmath
+
+== Abstract
+
+This document specifies the Quantitative Type Theory (QTT) subsystem of the
+TypeLL verification kernel. QTT enriches the type system with _usage
+quantifiers_ drawn from a semiring stem:[(Q, +, \cdot, 0, 1)], enabling
+the type checker to track how many times each variable is consumed. TypeLL
+adopts the stem:[\{0, 1, \omega\}] semiring of Atkey (2018) and extends it
+with `Bounded(n)` for fine-grained resource control.
+
+This specification is the formal counterpart of the `linear.adoc` substructural
+overview. Where `linear.adoc` specifies the `UsageTracker` and high-level
+discipline modes, this document specifies the algebraic structure of the
+semiring itself, the context-level operations, and the quantified typing
+rules that govern inference.
+
+The specification maps directly to the Rust implementation in
+`crates/typell-core/src/qtt.rs` and `types.rs`.
+
+== Status
+
+[cols="1,3"]
+|===
+| Status | *Draft*
+| Version | 0.1.0
+| Stability | Experimental
+| Supersedes | None
+| Implementation | `crates/typell-core/src/qtt.rs`, `types.rs`
+| Related specs | `linear.adoc`, `dependent.adoc`, `TYPELL-PROTOCOL.adoc`
+|===
+
+== Conformance
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD",
+"SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be
+interpreted as described in https://www.rfc-editor.org/rfc/rfc2119[RFC 2119].
+
+== The QTT Semiring
+
+=== Carrier Set
+
+The set of usage quantifiers is:
+
+[stem]
+++++
+Q = \{0, 1, \omega\} \cup \{n \mid n \in \mathbb{N}, n \ge 2\}
+++++
+
+where stem:[n] denotes a _bounded_ quantifier (at most stem:[n] uses).
+The elements are:
+
+[cols="1,2,4"]
+|===
+| Quantifier | Rust | Meaning
+
+| stem:[0]
+| `UsageQuantifier::Zero`
+| Erased. The variable exists only at compile time as a type-level witness.
+  Any runtime use is a violation.
+
+| stem:[1]
+| `UsageQuantifier::One`
+| Linear. Exactly one use in linear mode; at most one use in affine mode.
+
+| stem:[\omega]
+| `UsageQuantifier::Omega`
+| Unrestricted. The variable may be used any number of times, including zero.
+
+| stem:[n] (stem:[n \ge 2])
+| `UsageQuantifier::Bounded(n)`
+| Bounded. At most stem:[n] uses. Generalises affine types:
+  `Bounded(1)` is equivalent to affine.
+|===
+
+=== Semiring Axioms
+
+The quantifier algebra MUST satisfy the following axioms. These are verified
+by the Rust implementation and are essential for correctness of context
+splitting and scaling.
+
+==== Additive Monoid stem:[(Q, +, 0)]
+
+[stem]
+++++
+0 + \pi = \pi = \pi + 0
+\quad (\text{ADD-IDENT})
+++++
+
+[stem]
+++++
+\pi + \rho = \rho + \pi
+\quad (\text{ADD-COMM})
+++++
+
+[stem]
+++++
+(\pi + \rho) + \sigma = \pi + (\rho + \sigma)
+\quad (\text{ADD-ASSOC})
+++++
+
+==== Multiplicative Monoid stem:[(Q, \cdot, 1)]
+
+[stem]
+++++
+1 \cdot \pi = \pi = \pi \cdot 1
+\quad (\text{MUL-IDENT})
+++++
+
+[stem]
+++++
+\pi \cdot \rho = \rho \cdot \pi
+\quad (\text{MUL-COMM})
+++++
+
+[stem]
+++++
+(\pi \cdot \rho) \cdot \sigma = \pi \cdot (\rho \cdot \sigma)
+\quad (\text{MUL-ASSOC})
+++++
+
+==== Absorption
+
+[stem]
+++++
+0 \cdot \pi = 0 = \pi \cdot 0
+\quad (\text{MUL-ZERO})
+++++
+
+Multiplying by stem:[0] annihilates the quantifier. This is the algebraic
+basis for erasure: variables used inside an erased context contribute zero
+usage.
+
+==== Distributivity
+
+[stem]
+++++
+\pi \cdot (\rho + \sigma) = \pi \cdot \rho + \pi \cdot \sigma
+\quad (\text{DISTRIB})
+++++
+
+=== Addition Table
+
+The addition operation represents combined usage when a variable appears in
+multiple sub-expressions:
+
+[cols="1,1,1,1,1"]
+|===
+| stem:[+] | stem:[0] | stem:[1] | stem:[n] | stem:[\omega]
+
+| stem:[0]
+| stem:[0]
+| stem:[1]
+| stem:[n]
+| stem:[\omega]
+
+| stem:[1]
+| stem:[1]
+| stem:[2]^*^
+| stem:[n+1]
+| stem:[\omega]
+
+| stem:[m]
+| stem:[m]
+| stem:[m+1]
+| stem:[m+n]
+| stem:[\omega]
+
+| stem:[\omega]
+| stem:[\omega]
+| stem:[\omega]
+| stem:[\omega]
+| stem:[\omega]
+|===
+
+^*^ `One + One = Bounded(2)` — using a linear variable twice yields bounded-2
+usage, which is a linearity violation for a variable declared as stem:[1].
+
+Rust mapping: `UsageQuantifier::add()`.
+
+[source,rust]
+----
+pub fn add(&self, other: &Self) -> Self {
+    match (self, other) {
+        (Self::Zero, q) | (q, Self::Zero) => *q,
+        (Self::One, Self::One) => Self::Bounded(2),
+        (Self::One, Self::Bounded(n)) | (Self::Bounded(n), Self::One) => {
+            Self::Bounded(n + 1)
+        }
+        (Self::Bounded(a), Self::Bounded(b)) => Self::Bounded(a + b),
+        _ => Self::Omega,
+    }
+}
+----
+
+=== Multiplication Table
+
+The multiplication operation represents usage under a binder with a
+specific quantifier:
+
+[cols="1,1,1,1,1"]
+|===
+| stem:[\cdot] | stem:[0] | stem:[1] | stem:[n] | stem:[\omega]
+
+| stem:[0]
+| stem:[0]
+| stem:[0]
+| stem:[0]
+| stem:[0]
+
+| stem:[1]
+| stem:[0]
+| stem:[1]
+| stem:[n]
+| stem:[\omega]
+
+| stem:[m]
+| stem:[0]
+| stem:[m]
+| stem:[m \cdot n]^*^
+| stem:[\omega]
+
+| stem:[\omega]
+| stem:[0]
+| stem:[\omega]
+| stem:[\omega]
+| stem:[\omega]
+|===
+
+^*^ For bounded quantifiers, the current implementation treats
+stem:[m \cdot n] as stem:[\omega] unless one operand is stem:[0] or
+stem:[1]. This is a conservative approximation.
+
+Rust mapping: `qtt.rs::multiply()`.
+
+[source,rust]
+----
+fn multiply(a: &UsageQuantifier, b: &UsageQuantifier) -> UsageQuantifier {
+    match (a, b) {
+        (UsageQuantifier::Zero, _) | (_, UsageQuantifier::Zero) => UsageQuantifier::Zero,
+        (UsageQuantifier::One, q) | (q, UsageQuantifier::One) => *q,
+        _ => UsageQuantifier::Omega,
+    }
+}
+----
+
+== Context Operations
+
+=== QTT Context Definition
+
+A QTT context maps variable names to their usage quantifiers:
+
+[stem]
+++++
+\Gamma : \mathrm{Name} \to Q
+++++
+
+Rust mapping: `QttContext { entries: HashMap<String, UsageQuantifier> }`.
+
+=== Pointwise Addition
+
+[stem]
+++++
+(\Gamma_1 + \Gamma_2)(x) = \Gamma_1(x) + \Gamma_2(x)
+\quad (\text{CTX-ADD})
+++++
+
+Variables not present in a context are treated as having quantifier stem:[0].
+Context addition is used when two sub-expressions share the same scope:
+
+[source,rust]
+----
+pub fn add(&self, other: &QttContext) -> QttContext {
+    let mut result = self.clone();
+    for (name, q) in &other.entries {
+        let entry = result.entries.entry(name.clone())
+            .or_insert(UsageQuantifier::Zero);
+        *entry = entry.add(q);
+    }
+    result
+}
+----
+
+=== Scaling
+
+[stem]
+++++
+(\pi \cdot \Gamma)(x) = \pi \cdot \Gamma(x)
+\quad (\text{CTX-SCALE})
+++++
+
+Scaling by stem:[0] erases the entire context — this is the mechanism by
+which erased arguments contribute no usage:
+
+[source,rust]
+----
+pub fn scale(&self, q: &UsageQuantifier) -> QttContext {
+    let mut result = QttContext::new();
+    for (name, entry) in &self.entries {
+        result.entries.insert(name.clone(), multiply(entry, q));
+    }
+    result
+}
+----
+
+=== Compatibility Checking
+
+[stem]
+++++
+\Gamma_{\text{actual}} \le \Gamma_{\text{declared}}
+\iff
+\forall x.\; \Gamma_{\text{actual}}(x) \le \Gamma_{\text{declared}}(x)
+\quad (\text{CTX-COMPAT})
+++++
+
+The compatibility ordering on quantifiers is:
+
+[cols="2,4"]
+|===
+| Relationship | Condition
+
+| stem:[0 \le \pi]
+| Always. Zero usage is universally compatible.
+
+| stem:[1 \le 1]
+| Linear is compatible with linear.
+
+| stem:[1 \le \omega]
+| Linear is compatible with unrestricted.
+
+| stem:[n \le m]
+| When stem:[n \le m] (bounded is compatible with larger bound).
+
+| stem:[n \le \omega]
+| When stem:[n > 0]. Positive bounded is compatible with unrestricted.
+
+| stem:[\omega \le \omega]
+| Unrestricted is compatible with unrestricted.
+|===
+
+Rust mapping: `UsageQuantifier::compatible_with()` and
+`QttContext::check_against()`.
+
+== Quantified Typing Rules
+
+=== Quantified Function Types
+
+A quantified function type annotates the parameter with a usage quantifier:
+
+[stem]
+++++
+(\pi\; x : A) \to B
+++++
+
+This means: parameter stem:[x] of type stem:[A] is used with quantifier
+stem:[\pi] in the body producing type stem:[B].
+
+=== Variable Rule
+
+[stem]
+++++
+\frac{
+  (x :^{\pi} A) \in \Gamma
+}{
+  0\Gamma, x :^{\pi} A \vdash x : A
+} \quad (\text{QTT-VAR})
+++++
+
+Using variable stem:[x] produces a context where stem:[x] has been consumed
+stem:[\pi] times and all other variables have been consumed stem:[0] times
+(represented by stem:[0\Gamma], the zero-scaled context).
+
+=== Lambda Abstraction
+
+[stem]
+++++
+\frac{
+  \Gamma, x :^{\pi} A \vdash b : B
+  \quad \dashv \Delta
+}{
+  \Gamma \vdash \lambda(x :^{\pi} A). b : (\pi\; x : A) \to B
+  \quad \dashv \Delta \setminus x
+} \quad (\text{QTT-LAM})
+++++
+
+At scope exit, the usage of stem:[x] is checked against stem:[\pi].
+
+=== Application
+
+[stem]
+++++
+\frac{
+  \Gamma_1 \vdash f : (\pi\; x : A) \to B
+  \quad
+  \Gamma_2 \vdash a : A
+}{
+  \Gamma_1 + \pi \cdot \Gamma_2 \vdash f\;a : B[a/x]
+} \quad (\text{QTT-APP})
+++++
+
+The argument's context is _scaled_ by stem:[\pi]. This is the key rule:
+
+- If stem:[\pi = 0], the argument is erased — its context contributes nothing.
+- If stem:[\pi = 1], the argument's context is used exactly once.
+- If stem:[\pi = \omega], the argument's context is unrestricted.
+
+=== Let Binding
+
+[stem]
+++++
+\frac{
+  \Gamma_1 \vdash e_1 : A
+  \quad
+  \Gamma_2, x :^{\pi} A \vdash e_2 : B
+  \quad \dashv \Delta
+}{
+  \Gamma_1 + \pi \cdot \Gamma_2 \vdash
+  \mathbf{let}\;x :^{\pi} A = e_1\;\mathbf{in}\; e_2 : B
+  \quad \dashv \Delta \setminus x
+} \quad (\text{QTT-LET})
+++++
+
+=== Conditional
+
+[stem]
+++++
+\frac{
+  \Gamma_1 \vdash e_{\mathsf{cond}} : \mathsf{Bool}
+  \quad
+  \Gamma_2 \vdash e_{\mathsf{then}} : A
+  \quad
+  \Gamma_2 \vdash e_{\mathsf{else}} : A
+}{
+  \Gamma_1 + \Gamma_2 \vdash
+  \mathbf{if}\;e_{\mathsf{cond}}\;\mathbf{then}\;e_{\mathsf{then}}\;
+  \mathbf{else}\;e_{\mathsf{else}} : A
+} \quad (\text{QTT-IF})
+++++
+
+Both branches MUST use the same context stem:[\Gamma_2]. This ensures that
+linear variables are consumed exactly once regardless of which branch is
+taken. If one branch uses a variable and the other does not, it is a
+linearity violation.
+
+=== Pair Introduction
+
+[stem]
+++++
+\frac{
+  \Gamma_1 \vdash a : A
+  \quad
+  \Gamma_2 \vdash b : B
+}{
+  \Gamma_1 + \Gamma_2 \vdash (a, b) : A \times B
+} \quad (\text{QTT-PAIR})
+++++
+
+The contexts for the two components are _added_, reflecting that constructing
+a pair uses the resources of both components.
+
+== Usage Inference
+
+=== Algorithm
+
+TypeLL can infer usage quantifiers when they are not explicitly annotated.
+The inference algorithm operates in two phases:
+
+. **Count phase**: Traverse the expression and count occurrences of each
+  variable in the body.
+. **Assignment phase**: Assign a quantifier based on the count:
+  * 0 occurrences: stem:[0] (erased)
+  * 1 occurrence: stem:[1] (linear)
+  * stem:[n] occurrences (stem:[n > 1]): stem:[\omega] (unrestricted) or
+    `Bounded(n)` if bounded tracking is requested.
+
+This is exposed via the `/api/v1/infer-usage` endpoint.
+
+=== Example
+
+[source]
+----
+-- No annotation on 'n' — quantifier is inferred
+replicate (n : Nat) (x : a) : Vec<n, a>
+----
+
+The type checker observes that `n` appears only in the return type (a
+type-level position), not in any computational expression. It infers
+quantifier stem:[0] for `n`, making it an erased witness:
+
+[source]
+----
+replicate (0 n : Nat) (w x : a) : Vec<n, a>
+----
+
+The variable `x` is used stem:[\omega] times (once per element in the
+resulting vector, which is dynamically determined).
+
+== Formal Properties
+
+=== Subject Reduction
+
+If stem:[\Gamma \vdash e : A] and stem:[e \to e'], then
+stem:[\Gamma' \vdash e' : A] where stem:[\Gamma'] is compatible with
+stem:[\Gamma] (i.e., stem:[\Gamma' \le \Gamma]):
+
+[stem]
+++++
+\frac{
+  \Gamma \vdash e : A
+  \quad
+  e \to e'
+}{
+  \exists \Gamma'.\; \Gamma' \le \Gamma \;\wedge\; \Gamma' \vdash e' : A
+} \quad (\text{SUBJECT-RED})
+++++
+
+Usage can only decrease during evaluation (resources are consumed).
+
+=== Linearity Guarantee
+
+A well-typed program with a variable at quantifier stem:[1] will use that
+variable exactly once at runtime:
+
+[stem]
+++++
+\frac{
+  \Gamma, x :^{1} A \vdash e : B
+}{
+  \#\mathrm{uses}(x, \mathrm{eval}(e)) = 1
+} \quad (\text{LIN-GUARANTEE})
+++++
+
+=== Erasure Safety
+
+Variables at quantifier stem:[0] do not appear in the erased program:
+
+[stem]
+++++
+\frac{
+  \Gamma, x :^{0} A \vdash e : B
+}{
+  x \notin \mathrm{FV}(\mathrm{erase}(e))
+} \quad (\text{ERASE-SAFE})
+++++
+
+This enables zero-cost dependent types: proof witnesses and type indices
+are erased before code generation.
+
+== References
+
+* Rust implementation: `crates/typell-core/src/qtt.rs`, `types.rs`
+* Atkey, R. (2018). "Syntax and Semantics of Quantitative Type Theory".
+  In _Proceedings of LICS 2018_.
+* McBride, C. (2016). "I Got Plenty o' Nuttin'".
+  In _A List of Successes That Can Change the World_. LNCS 9600.
+* Brady, E. (2021). "Idris 2: Quantitative Type Theory in Practice".
+  In _Proceedings of ECOOP 2021_.
+* Linear types specification: `spec/type-system/linear.adoc`
+* Dependent types specification: `spec/type-system/dependent.adoc`
+* Protocol specification: `spec/protocol/TYPELL-PROTOCOL.adoc`

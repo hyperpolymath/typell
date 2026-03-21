@@ -1,0 +1,683 @@
+// SPDX-License-Identifier: PMPL-1.0-or-later
+// SPDX-FileCopyrightText: Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath)
+//
+// TypeLL Session Types Specification
+// Phase 1 — Formal specification of session types for protocol-safe communication.
+
+= TypeLL Session Types Specification
+Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+:revnumber: 0.1.0
+:revdate: 2026-03-21
+:revremark: Phase 1 initial specification
+:toc: left
+:toclevels: 4
+:sectnums:
+:sectnumlevels: 4
+:source-highlighter: rouge
+:icons: font
+:experimental:
+:stem: latexmath
+
+== Abstract
+
+This document specifies the session type system of the TypeLL verification
+kernel. Session types guarantee that communicating parties follow compatible
+protocols by construction. TypeLL supports binary session types with send,
+receive, external choice (offer), internal choice (select), recursive
+protocols, and protocol termination. The key operation is _duality_: if one
+endpoint has session type stem:[S], the other must have stem:[S^{\bot}]
+(the dual of stem:[S]).
+
+The specification maps directly to the Rust implementation in
+`crates/typell-core/src/session.rs` and `types.rs`.
+
+== Status
+
+[cols="1,3"]
+|===
+| Status | *Draft*
+| Version | 0.1.0
+| Stability | Experimental
+| Supersedes | None
+| Implementation | `crates/typell-core/src/session.rs`
+| Related specs | `linear.adoc`, `dependent.adoc`, `TYPELL-PROTOCOL.adoc`
+|===
+
+== Conformance
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD",
+"SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be
+interpreted as described in https://www.rfc-editor.org/rfc/rfc2119[RFC 2119].
+
+== Background
+
+Session types, introduced by Honda (1993), provide a type-theoretic framework
+for specifying and verifying communication protocols. Each endpoint of a
+communication channel carries a _session type_ that describes the sequence
+of operations (send, receive, choice) the endpoint must perform. The type
+system statically guarantees:
+
+. **Protocol fidelity**: Each endpoint follows its declared protocol.
+. **Deadlock freedom**: Compatible endpoints will not deadlock (in the
+   binary case).
+. **Communication safety**: Messages have the correct types.
+. **Protocol completeness**: All branches are handled; the protocol
+   reaches `End`.
+
+== Session Type Syntax
+
+=== Grammar
+
+The session type language is defined by the following grammar:
+
+[source]
+----
+S, T ::= Send<A, S>         -- Send a value of type A, continue as S
+        | Recv<A, S>         -- Receive a value of type A, continue as S
+        | Offer<{l₁: S₁, ..., lₙ: Sₙ}>   -- External choice (offer branches)
+        | Select<{l₁: S₁, ..., lₙ: Sₙ}>  -- Internal choice (select branch)
+        | End                -- Protocol termination
+        | Rec<X, S>          -- Recursive protocol (mu-binder)
+        | X                  -- Recursion variable
+----
+
+=== Implementation Mapping
+
+Each syntactic form maps to a Rust variant in `types.rs::SessionType`:
+
+[cols="2,2,4"]
+|===
+| Formal | Rust | Description
+
+| stem:[\mathsf{Send}\langle A, S \rangle]
+| `SessionType::Send(Box<Type>, Box<SessionType>)`
+| Send a value of type stem:[A], then continue as stem:[S].
+
+| stem:[\mathsf{Recv}\langle A, S \rangle]
+| `SessionType::Recv(Box<Type>, Box<SessionType>)`
+| Receive a value of type stem:[A], then continue as stem:[S].
+
+| stem:[\mathsf{Offer}\langle \{l_1: S_1, \ldots\} \rangle]
+| `SessionType::Offer(Vec<(String, SessionType)>)`
+| External choice. The environment selects a branch; the process
+  must handle all offered labels.
+
+| stem:[\mathsf{Select}\langle \{l_1: S_1, \ldots\} \rangle]
+| `SessionType::Select(Vec<(String, SessionType)>)`
+| Internal choice. The process selects a branch; the environment
+  must be prepared for any selection.
+
+| stem:[\mathsf{End}]
+| `SessionType::End`
+| Protocol termination. No further communication occurs.
+
+| stem:[\mu X. S]
+| `SessionType::Rec(String, Box<SessionType>)`
+| Recursive protocol. The variable stem:[X] is bound in stem:[S].
+
+| stem:[X]
+| `SessionType::RecVar(String)`
+| Reference to a recursive binder.
+|===
+
+== Duality
+
+=== Definition
+
+The dual of a session type swaps the direction of communication at every
+step. If one endpoint has session type stem:[S], the other must have
+stem:[S^{\bot}]. The duality function is defined recursively:
+
+[stem]
+++++
+\mathsf{Send}\langle A, S \rangle^{\bot} = \mathsf{Recv}\langle A, S^{\bot} \rangle
+++++
+
+[stem]
+++++
+\mathsf{Recv}\langle A, S \rangle^{\bot} = \mathsf{Send}\langle A, S^{\bot} \rangle
+++++
+
+[stem]
+++++
+\mathsf{Offer}\langle \{l_i: S_i\} \rangle^{\bot} = \mathsf{Select}\langle \{l_i: S_i^{\bot}\} \rangle
+++++
+
+[stem]
+++++
+\mathsf{Select}\langle \{l_i: S_i\} \rangle^{\bot} = \mathsf{Offer}\langle \{l_i: S_i^{\bot}\} \rangle
+++++
+
+[stem]
+++++
+\mathsf{End}^{\bot} = \mathsf{End}
+++++
+
+[stem]
+++++
+(\mu X. S)^{\bot} = \mu X. S^{\bot}
+++++
+
+[stem]
+++++
+X^{\bot} = X
+++++
+
+Rust mapping: `session.rs::dual()`.
+
+=== Duality as Involution
+
+Duality is an involution — applying it twice yields the original type:
+
+[stem]
+++++
+(S^{\bot})^{\bot} = S
+\quad (\text{DUAL-INVOL})
+++++
+
+This property is verified by `test_dual_is_involution` in the test suite.
+
+=== Duality Compatibility Check
+
+Two session types stem:[S_1] and stem:[S_2] are _compatible_ if and only if
+they are duals of each other:
+
+[stem]
+++++
+\frac{
+  \mathsf{dual}(S_1) = S_2
+}{
+  S_1 \sim S_2
+} \quad (\text{COMPAT})
+++++
+
+Rust mapping: `session.rs::are_dual()`.
+
+== Well-Formedness
+
+A session type is _well-formed_ if it satisfies the following conditions:
+
+=== Bound Variables
+
+Every recursion variable stem:[X] occurring in a session type MUST be bound
+by an enclosing stem:[\mu X] binder:
+
+[stem]
+++++
+\frac{
+  X \in \mathrm{BV}
+}{
+  \mathrm{BV} \vdash X \;\mathsf{ok}
+} \quad (\text{WF-VAR})
+++++
+
+[stem]
+++++
+\frac{
+  \mathrm{BV} \cup \{X\} \vdash S \;\mathsf{ok}
+}{
+  \mathrm{BV} \vdash \mu X. S \;\mathsf{ok}
+} \quad (\text{WF-REC})
+++++
+
+An unbound recursion variable renders the session type ill-formed.
+
+=== Distinct Labels
+
+All branch labels in an `Offer` or `Select` MUST be distinct:
+
+[stem]
+++++
+\frac{
+  l_1, \ldots, l_n \text{ are pairwise distinct}
+  \quad
+  \forall i.\; \mathrm{BV} \vdash S_i \;\mathsf{ok}
+}{
+  \mathrm{BV} \vdash \mathsf{Offer}\langle \{l_1: S_1, \ldots, l_n: S_n\} \rangle \;\mathsf{ok}
+} \quad (\text{WF-OFFER})
+++++
+
+The same rule applies to `Select`.
+
+=== Contractivity
+
+A well-formed recursive session type MUST be contractive: every recursive
+unfolding MUST perform at least one communication action (Send, Recv, Offer,
+Select) before recursing. A non-contractive type like stem:[\mu X. X]
+represents an infinite loop with no communication, which is meaningless.
+
+NOTE: Full contractivity checking is planned for Phase 2. The current
+implementation (`is_well_formed()`) checks variable binding and label
+uniqueness.
+
+=== Implementation
+
+[source,rust]
+----
+pub fn is_well_formed(session: &SessionType) -> bool {
+    is_well_formed_inner(session, &[])
+}
+
+fn is_well_formed_inner(session: &SessionType, bound_vars: &[&str]) -> bool {
+    match session {
+        SessionType::End => true,
+        SessionType::Send(_, cont) | SessionType::Recv(_, cont) => {
+            is_well_formed_inner(cont, bound_vars)
+        }
+        SessionType::Offer(branches) | SessionType::Select(branches) => {
+            let mut seen = std::collections::HashSet::new();
+            for (label, s) in branches {
+                if !seen.insert(label.as_str()) {
+                    return false; // Duplicate label
+                }
+                if !is_well_formed_inner(s, bound_vars) {
+                    return false;
+                }
+            }
+            true
+        }
+        SessionType::Rec(var, body) => {
+            let mut new_bound = bound_vars.to_vec();
+            new_bound.push(var.as_str());
+            is_well_formed_inner(body, &new_bound)
+        }
+        SessionType::RecVar(var) => bound_vars.contains(&var.as_str()),
+    }
+}
+----
+
+== Typing Rules
+
+=== Channel Typing
+
+A channel endpoint carrying session type stem:[S] is typed as
+stem:[\mathsf{Chan}\langle S \rangle]. Channel endpoints are _linear_ —
+they must be used exactly according to the protocol.
+
+[stem]
+++++
+\frac{
+  \Gamma, c :^{1} \mathsf{Chan}\langle S \rangle \vdash P
+}{
+  \Gamma \vdash (\nu c : S) P
+} \quad (\text{CHAN-NEW})
+++++
+
+The linearity quantifier stem:[1] ensures the channel is consumed exactly
+as the protocol prescribes. See `linear.adoc` for the QTT integration.
+
+=== Send
+
+[stem]
+++++
+\frac{
+  \Gamma_1 \vdash v : A
+  \quad
+  \Gamma_2, c :^{1} \mathsf{Chan}\langle S \rangle \vdash P
+}{
+  \Gamma_1 + \Gamma_2, c :^{1} \mathsf{Chan}\langle \mathsf{Send}\langle A, S \rangle \rangle
+  \vdash \mathsf{send}(c, v); P
+} \quad (\text{T-SEND})
+++++
+
+Sending a value stem:[v] of type stem:[A] over channel stem:[c] transitions
+the channel from stem:[\mathsf{Send}\langle A, S \rangle] to stem:[S]. The
+old endpoint is consumed, and a new endpoint at type stem:[S] is produced.
+
+=== Receive
+
+[stem]
+++++
+\frac{
+  \Gamma, x : A, c :^{1} \mathsf{Chan}\langle S \rangle \vdash P
+}{
+  \Gamma, c :^{1} \mathsf{Chan}\langle \mathsf{Recv}\langle A, S \rangle \rangle
+  \vdash \mathsf{let}\;(x, c) = \mathsf{recv}(c)\;\mathsf{in}\; P
+} \quad (\text{T-RECV})
+++++
+
+Receiving from channel stem:[c] produces a value of type stem:[A] and
+transitions the channel from stem:[\mathsf{Recv}\langle A, S \rangle]
+to stem:[S].
+
+=== Select (Internal Choice)
+
+[stem]
+++++
+\frac{
+  l_j \in \{l_1, \ldots, l_n\}
+  \quad
+  \Gamma, c :^{1} \mathsf{Chan}\langle S_j \rangle \vdash P
+}{
+  \Gamma, c :^{1} \mathsf{Chan}\langle \mathsf{Select}\langle \{l_i: S_i\} \rangle \rangle
+  \vdash \mathsf{select}(c, l_j); P
+} \quad (\text{T-SELECT})
+++++
+
+The process selects label stem:[l_j] and the channel transitions to
+stem:[S_j].
+
+=== Offer (External Choice)
+
+[stem]
+++++
+\frac{
+  \forall i \in \{1, \ldots, n\}.\;
+  \Gamma, c :^{1} \mathsf{Chan}\langle S_i \rangle \vdash P_i
+}{
+  \Gamma, c :^{1} \mathsf{Chan}\langle \mathsf{Offer}\langle \{l_i: S_i\} \rangle \rangle
+  \vdash \mathsf{offer}(c, \{l_i \Rightarrow P_i\})
+} \quad (\text{T-OFFER})
+++++
+
+The process must provide a handler for _every_ offered label. The
+environment decides which branch is taken.
+
+=== End
+
+[stem]
+++++
+\frac{}{
+  \Gamma \vdash \mathsf{close}(c) :
+  \mathsf{Chan}\langle \mathsf{End} \rangle \to ()
+} \quad (\text{T-END})
+++++
+
+Closing a channel at `End` consumes the endpoint. After this, the channel
+cannot be used.
+
+=== Recursion
+
+[stem]
+++++
+\frac{
+  \Gamma, c :^{1} \mathsf{Chan}\langle S[\mu X. S / X] \rangle \vdash P
+}{
+  \Gamma, c :^{1} \mathsf{Chan}\langle \mu X. S \rangle \vdash \mathsf{unfold}(c); P
+} \quad (\text{T-UNFOLD})
+++++
+
+Unfolding a recursive session type substitutes the entire recursive type
+for the bound variable, producing the protocol body with one level of
+recursion expanded.
+
+== Transaction States
+
+TypeLL extends classical session types with _transaction states_ for
+database and resource-management protocols. A transaction state annotates
+a session type endpoint with its current lifecycle phase.
+
+=== State Enumeration
+
+[cols="2,2,4"]
+|===
+| State | Wire Value | Description
+
+| **Fresh**
+| `"fresh"`
+| The channel has been created but no operations have been performed.
+  The protocol is at its initial position.
+
+| **Active**
+| `"active"`
+| A transaction is in progress. Mutations are buffered and uncommitted.
+  The protocol has performed at least one send or receive.
+
+| **Committed**
+| `"committed"`
+| The transaction has been committed. All buffered mutations are durable.
+  The channel transitions to a post-commit continuation or `End`.
+
+| **RolledBack**
+| `"rolled_back"`
+| The transaction has been rolled back. All buffered mutations are
+  discarded. The channel returns to its pre-transaction state.
+
+| **ReadSnapshot**
+| `"read_snapshot"`
+| A read-only snapshot of the data at a specific point in time.
+  No mutations are permitted in this state.
+|===
+
+=== State Transition Rules
+
+[stem]
+++++
+\frac{
+  s = \mathsf{Fresh}
+}{
+  \mathsf{begin}(c) : s \to \mathsf{Active}
+} \quad (\text{TX-BEGIN})
+++++
+
+[stem]
+++++
+\frac{
+  s = \mathsf{Active}
+}{
+  \mathsf{commit}(c) : s \to \mathsf{Committed}
+} \quad (\text{TX-COMMIT})
+++++
+
+[stem]
+++++
+\frac{
+  s = \mathsf{Active}
+}{
+  \mathsf{rollback}(c) : s \to \mathsf{RolledBack}
+} \quad (\text{TX-ROLLBACK})
+++++
+
+[stem]
+++++
+\frac{
+  s = \mathsf{Fresh}
+}{
+  \mathsf{snapshot}(c) : s \to \mathsf{ReadSnapshot}
+} \quad (\text{TX-SNAPSHOT})
+++++
+
+Attempting an invalid transition (e.g., `commit` on a `Fresh` channel, or
+mutation in `ReadSnapshot` state) produces a `TypeError::SessionViolation`.
+
+== Built-In Protocol Templates
+
+TypeLL provides a library of protocol templates for common interaction
+patterns, particularly for VeriSimDB integration.
+
+=== ReadOnly Protocol
+
+[source]
+----
+type ReadOnly<Q, R> = Send<Q, Recv<R, End>>
+----
+
+A query-response protocol: send a query of type stem:[Q], receive a result
+of type stem:[R], and terminate. No mutations occur.
+
+Dual:
+[source]
+----
+dual(ReadOnly<Q, R>) = Recv<Q, Send<R, End>>
+----
+
+=== Mutation Protocol
+
+[source]
+----
+type Mutation<C, R> = Send<C, Recv<Ack, Select<{
+    commit: Recv<R, End>,
+    rollback: End,
+}>>>
+----
+
+A transactional mutation protocol: send a command stem:[C], receive an
+acknowledgement, then choose to commit (receiving the result stem:[R])
+or rollback.
+
+=== Stream Protocol
+
+[source]
+----
+type Stream<A> = Rec<X, Select<{
+    next: Recv<A, X>,
+    done: End,
+}>>
+----
+
+A streaming protocol: repeatedly choose to receive the next element or
+terminate. The receiver controls the pace.
+
+=== Batch Protocol
+
+[source]
+----
+type Batch<C, R> = Rec<X, Select<{
+    add: Send<C, X>,
+    execute: Recv<Vec<R>, End>,
+    cancel: End,
+}>>
+----
+
+A batch protocol: accumulate commands, then execute all at once or cancel.
+
+== Protocol Compliance Checking
+
+=== Overview
+
+Protocol compliance checking verifies that a program uses a channel
+endpoint according to its session type. The checker operates during
+type checking and produces `session_notes` in the `CheckResult` response.
+
+=== Completeness
+
+A session type protocol MUST be fully consumed — every execution path
+must reach `End`. An abandoned channel (one that goes out of scope before
+reaching `End`) is a protocol violation:
+
+[stem]
+++++
+\frac{
+  c :^{1} \mathsf{Chan}\langle S \rangle \in \Gamma
+  \quad
+  S \ne \mathsf{End}
+}{
+  \text{violation: incomplete protocol on } c
+} \quad (\text{SESSION-INCOMPLETE})
+++++
+
+This is enforced by the QTT linearity tracker: since channel endpoints have
+quantifier stem:[1], they must be consumed (ultimately passed to `close`
+at `End`).
+
+=== Proof Obligations
+
+When the type checker cannot statically determine that a protocol reaches
+`End` (e.g., due to dynamic control flow), it generates a
+`Proposition::SessionComplete` proof obligation. This obligation is
+forwarded to ECHIDNA for external verification.
+
+Rust mapping: `proof.rs::ObligationCollector::add_session_completeness()`.
+
+== Interaction with Linear Types
+
+Session-typed channel endpoints are inherently linear. Each protocol step
+consumes the old endpoint and produces a new one at the continuation type.
+This ensures that:
+
+. Protocol steps cannot be skipped (no weakening of the channel).
+. Protocol steps cannot be duplicated (no contraction of the channel).
+. The protocol is followed in the exact prescribed order.
+
+[source]
+----
+-- The channel 'ch' has quantifier 1 (linear)
+buyer : (1 ch : Chan<BuyProtocol>) -> IO ()
+buyer ch = do
+  ch' <- send ch item          -- ch consumed, ch' : Chan<Recv<Price, ...>>
+  (price, ch'') <- recv ch'    -- ch' consumed, ch'' : Chan<Select<...>>
+  ch''' <- select ch'' "accept" -- ch'' consumed, ch''' : Chan<Send<Payment, ...>>
+  ch'''' <- send ch''' payment  -- ch''' consumed
+  (receipt, done) <- recv ch''''
+  close done                    -- done : Chan<End>, consumed
+----
+
+Each binding consumes the previous channel endpoint (quantifier stem:[1])
+and introduces a new one at the next protocol state. This is verified by
+the `UsageTracker` from `linear.rs`.
+
+== Examples
+
+=== Example 1: Buyer-Seller Protocol
+
+[source]
+----
+type BuyProtocol = Send<Item, Recv<Price, Select<{
+    accept: Send<Payment, Recv<Receipt, End>>,
+    reject: End,
+}>>>
+
+type SellProtocol = dual(BuyProtocol)
+-- = Recv<Item, Send<Price, Offer<{
+--     accept: Recv<Payment, Send<Receipt, End>>,
+--     reject: End,
+-- }>>>
+----
+
+The buyer sends an item, receives a price, and chooses to accept (paying and
+receiving a receipt) or reject. The seller is the exact dual: it receives an
+item, sends a price, and offers to accept or reject.
+
+=== Example 2: Recursive Streaming
+
+[source]
+----
+type NumberStream = Rec<X, Select<{
+    next: Recv<Int, X>,
+    done: End,
+}>>
+----
+
+The client repeatedly chooses `next` (receiving an integer each time) or
+`done` (terminating the stream). The server's dual is:
+
+[source]
+----
+dual(NumberStream) = Rec<X, Offer<{
+    next: Send<Int, X>,
+    done: End,
+}>>
+----
+
+=== Example 3: Database Transaction
+
+[source]
+----
+type DbTransaction<Q, R, C> = Select<{
+    read:   Send<Q, Recv<R, End>>,
+    mutate: Send<C, Recv<Ack, Select<{
+        commit:   Recv<R, End>,
+        rollback: End,
+    }>>>,
+}>>
+----
+
+The client chooses between a read-only query and a mutation. Mutations are
+transactional: the client can commit or roll back after seeing the
+acknowledgement.
+
+== References
+
+* Rust implementation: `crates/typell-core/src/session.rs`, `types.rs`
+* Honda, K. (1993). "Types for Dyadic Interaction".
+  In _Proceedings of CONCUR '93_.
+* Honda, K., Vasconcelos, V.T., Kubo, M. (1998). "Language Primitives and
+  Type Discipline for Structured Communication-Based Programming".
+  In _Proceedings of ESOP '98_.
+* Gay, S.J., Hole, M. (2005). "Subtyping for Session Types in the Pi
+  Calculus". _Acta Informatica_, 42(2-3).
+* Wadler, P. (2012). "Propositions as Sessions".
+  In _Proceedings of ICFP '12_.
+* Linear types specification: `spec/type-system/linear.adoc`
+* Dependent types specification: `spec/type-system/dependent.adoc`
+* Protocol specification: `spec/protocol/TYPELL-PROTOCOL.adoc`
