@@ -1,22 +1,209 @@
 // SPDX-License-Identifier: PMPL-1.0-or-later
-= YOUR Template Repo Roadmap
+= TypeLL Roadmap
+:toc:
+:toclevels: 3
+:author: Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
 
-== Current Status
+== Overview
 
-Initial development phase.
+TypeLL is the unified type system verification kernel for the hyperpolymath ecosystem. It is to PanLL what LLVM is to Clang: the formal verification substrate that multiple language frontends compile _types_ into. TypeLL provides a 10-level type safety hierarchy used by VQL-UT, 007, Kategoria, PanLL, and the nextgen-languages suite.
+
+== Current State (2026-03-29)
+
+=== Architecture
+
+```
+Language Frontends (14 bridges)
+        |
+        v
+typell-core (unified kernel)
+  types.rs      — Unified type representation
+  unify.rs      — Robinson unification + occurs check
+  infer.rs      — Bidirectional type inference
+  check.rs      — Type checking coordinator
+  linear.rs     — Linear/affine usage tracking (QTT)
+  effects.rs    — Algebraic effect system
+  qtt.rs        — QTT semiring operations
+  dimensional.rs — Dimensional analysis (SI units)
+  session.rs    — Session type protocols
+  proof.rs      — Proof obligation generation
+  error.rs      — Diagnostic types
+        |
+        v
+typell-server (HTTP/JSON-RPC on port 7800)
+```
+
+=== Rust Workspace (14 crates)
+
+[cols="1,2"]
+|===
+| Crate | Purpose
+
+| `typell-core`
+| Unified type kernel (11 modules: types, unify, infer, check, linear, effects, qtt, dimensional, session, proof, error)
+
+| `typell-server`
+| HTTP/JSON-RPC server (port 7800) with handler dispatch
+
+| `typell-vql`
+| VQL-UT bridge — maps 10-level type safety into TypeLL (4 modules: lib, bridge, levels, rules)
+
+| `typell-eclexia`
+| Eclexia language bridge (resource types, dimensional analysis)
+
+| `typell-affinescript`
+| AffineScript language bridge
+
+| `typell-ephapax`
+| Ephapax language bridge (linear types)
+
+| `typell-wokelang`
+| Wokelang language bridge
+
+| `typell-betlang`
+| Betlang language bridge
+
+| `typell-mylang`
+| My-Lang language bridge
+
+| `typell-oblibeny`
+| Oblibeny language bridge
+
+| `typell-tangle`
+| Tangle language bridge
+
+| `typell-jtv`
+| JTV language bridge
+
+| `typell-errorlang`
+| Errorlang language bridge
+
+| `typell-phronesis`
+| Phronesis language bridge
+|===
+
+=== 10-Level Type Safety Hierarchy
+
+[cols="1,2,2"]
+|===
+| Level | Name | TypeLL Concept
+
+| L1  | Parse-time safety         | Well-formed AST
+| L2  | Schema-binding safety     | Named type resolution
+| L3  | Type-compatible operations | Unification + operator checking
+| L4  | Null-safety               | Option types, totality checking
+| L5  | Injection-proof safety    | Refinement predicates
+| L6  | Result-type safety        | Return type inference
+| L7  | Cardinality safety        | Bounded quantifiers
+| L8  | Effect-tracking safety    | Algebraic effects
+| L9  | Temporal safety           | Session types, state machines
+| L10 | Linearity safety          | QTT bounded usage, linear types
+|===
+
+=== ABI/FFI Layer
+
+* **Idris2 ABI:** `src/abi/Types.idr`, `Layout.idr`, `Foreign.idr` — dependent type proofs for interface correctness
+* **Zig FFI:** `ffi/zig/src/main.zig` — C-compatible implementation with integration tests
+
+=== Consumers
+
+* **VQL-UT** — Type-safe query language (supersedes VQL-DT); levels 7-10 map VQL-DT legacy extensions
+* **007** — Agent meta-language type system (tropical types, Five Facets)
+* **Kategoria** — Category theory verification; Route alpha achieved L9 (session types via Brady indexed monad)
+* **PanLL** — Cross-panel type intelligence (TypeLLService + TypeLLEngine in src/core/)
+* **typed-wasm** — TypeLL 10-level type safety applied to WASM memory, multi-module
+* **nextgen-languages** — 14 language frontends via bridge crates
 
 == Milestones
 
-=== v0.1.0 - Foundation
-* [ ] Core functionality
-* [ ] Basic documentation
-* [ ] CI/CD pipeline
+=== v0.1.0 — Core Kernel (COMPLETE)
 
-=== v1.0.0 - Stable Release
-* [ ] Full feature set
-* [ ] Comprehensive tests
-* [ ] Production ready
+* [x] Unified type representation (HM polymorphism + dependent + linear + effects + sessions + dimensions + refinements)
+* [x] Robinson unification with occurs check
+* [x] Bidirectional type inference (synthesis + checking modes)
+* [x] QTT-based linearity tracking (Zero, One, Omega, Bounded(n))
+* [x] Algebraic effect system
+* [x] Dimensional analysis (SI-based, from Eclexia)
+* [x] Session type protocol duality checking
+* [x] Proof obligation generation for dependent types
+* [x] Error diagnostics
+* [x] `#![forbid(unsafe_code)]` across all crates
 
-== Future Directions
+=== v0.2.0 — Language Bridges (COMPLETE)
 
-_To be determined based on community feedback._
+* [x] 14 language bridge crates (eclexia, affinescript, ephapax, wokelang, betlang, mylang, oblibeny, tangle, jtv, errorlang, phronesis, vql)
+* [x] Each bridge: lib.rs + bridge.rs + rules.rs (language-specific type lowering)
+* [x] VQL-UT bridge maps all 10 levels including VQL-DT legacy (linear, session, effects, modal, proof-carrying, QTT)
+
+=== v0.3.0 — Server & Integration (COMPLETE)
+
+* [x] typell-server HTTP/JSON-RPC on port 7800
+* [x] Handler dispatch for type checking requests
+* [x] Wire-compatible serialization with PanLL (TypeLLModel.res)
+* [x] PanLL TypeLLService integration (cross-panel type intelligence)
+
+=== v0.4.0 — ABI/FFI Layer (COMPLETE)
+
+* [x] Idris2 ABI definitions (Types.idr, Layout.idr, Foreign.idr)
+* [x] Zig FFI implementation (main.zig)
+* [x] Integration tests (ffi/zig/test/integration_test.zig)
+* [x] ReScript example (examples/SafeDOMExample.res)
+
+=== v0.5.0 — Comprehensive Testing (IN PROGRESS)
+
+* [x] Core comprehensive tests (crates/typell-core/tests/core_comprehensive_tests.rs)
+* [x] Integration tests (tests/integration_test.rs)
+* [ ] Cross-bridge type checking tests (verify same type in 2+ languages unifies)
+* [ ] Performance benchmarks (large type graphs, deep unification)
+* [ ] Fuzz testing for unification and inference
+
+=== v0.6.0 — VQL-UT Deep Integration (PLANNED)
+
+* [ ] VQL-UT query type annotations (level metadata in query results)
+* [ ] Type-safe query composition (compose queries with verified type compatibility)
+* [ ] Query result type inference (infer return types from schema + query)
+* [ ] Level escalation tracking (which operations require higher levels)
+
+=== v0.7.0 — 007 Integration (PLANNED)
+
+* [ ] 007 agent type checking (tropical types, Five Facets)
+* [ ] Session type verification for agent choreographies
+* [ ] Effect tracking for agent side effects
+* [ ] Linear resource tracking for agent capabilities
+
+=== v0.8.0 — Production Hardening (PLANNED)
+
+* [ ] Sub-millisecond type checking for common cases
+* [ ] Incremental type checking (cache + invalidation)
+* [ ] LSP protocol support (IDE integration)
+* [ ] SARIF output for CI/CD integration
+* [ ] Documentation: architecture guide, language bridge development guide
+
+=== v1.0.0 — Stable Release (PLANNED)
+
+* [ ] All 14 language bridges fully tested
+* [ ] VQL-UT and 007 integrations production-ready
+* [ ] API stability guarantee (no breaking changes to core types)
+* [ ] Performance validated at scale
+* [ ] arXiv paper on 10-level type safety hierarchy
+* [ ] L10 cubical/HoTT support (requires cubical prover — currently a wall in pure Idris2)
+
+== Post-v1.0
+
+* **typed-wasm** — TypeLL 10-level type safety applied to WASM memory, multi-module breakthrough
+* **Additional language bridges** — Ada, Haskell, Rust, Gleam frontends
+* **Distributed type checking** — Federated TypeLL instances sharing type context
+* **Proof search** — Automated theorem proving for type obligations (ECHIDNA integration)
+* **Academic publication** — Graduated type safety as research contribution
+
+== License & Governance
+
+**License:** PMPL-1.0-or-later (Palimpsest License)
+
+**Author:** Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+
+**Repository:** https://github.com/hyperpolymath/typell
+
+---
+
+_Last Updated: 2026-03-29_
