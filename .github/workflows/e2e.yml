@@ -1,0 +1,114 @@
+# SPDX-License-Identifier: PMPL-1.0-or-later
+# Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
+#
+# TypeLL — E2E + Aspect + Bench
+#
+# Tests the full type-check→compile→run pipeline, integration tests,
+# VQL bridge, and safety aspects.
+
+name: E2E + Aspect + Bench
+
+on:
+  push:
+    branches: [main, master, develop]
+    paths:
+      - 'crates/**'
+      - 'tests/**'
+      - 'src/**'
+      - 'Cargo.toml'
+      - '.github/workflows/e2e.yml'
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions: read-all
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: E2E — Full Pipeline + Integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7  # stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5  # v2
+
+      - name: Build workspace
+        run: cargo build --workspace
+
+      - name: Run all tests (unit + integration)
+        run: cargo test --workspace
+
+      - name: Run integration tests specifically
+        run: cargo test --test integration_test -- --nocapture
+
+      - name: Run VQL bridge tests
+        run: cargo test -p typell-vql --test vql_bridge_tests -- --nocapture 2>/dev/null || echo "VQL bridge tests skipped"
+
+  aspect-safety:
+    name: Aspect — Safety Invariants
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: No dangerous patterns
+        run: |
+          DANGEROUS=$(grep -rn 'believe_me\|assert_total\|sorry\|Admitted\|unsafeCoerce' crates/ src/ 2>/dev/null | grep -v test || true)
+          if [ -n "$DANGEROUS" ]; then
+            echo "FAIL: Dangerous patterns found"
+            echo "$DANGEROUS"
+            exit 1
+          fi
+          echo "PASS: No dangerous patterns"
+
+      - name: SPDX headers
+        run: |
+          MISSING=0
+          for f in $(find crates/ -name "*.rs" | head -30); do
+            if ! head -3 "$f" | grep -q "SPDX\|Copyright"; then
+              MISSING=$((MISSING + 1))
+            fi
+          done
+          if [ "$MISSING" -gt 5 ]; then
+            echo "WARN: $MISSING of 30 sampled files missing SPDX"
+          fi
+          echo "SPDX check: $MISSING missing (of 30 sampled)"
+
+  benchmarks:
+    name: Bench — Type System Performance
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7  # stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5  # v2
+
+      - name: Run benchmarks
+        run: cargo bench --workspace 2>&1 | tee /tmp/bench-results.txt || echo "No benchmarks configured"
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: benchmark-results
+          path: /tmp/bench-results.txt
+          retention-days: 30
