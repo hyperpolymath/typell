@@ -4,13 +4,13 @@
     "team"
   ],
   "capabilities": {
-    "primary": {
-      "description": "TODO: describe this service's primary capability",
+    "theorem-proving": {
+      "description": "PanLL's verification kernel enforcing dependent, linear, session, and quantitative types for database queries.",
       "endpoint": "/api",
       "panel_compatible": true,
       "protocol": "http",
       "requires_auth": false,
-      "type": "custom"
+      "type": "theorem-proving"
     }
   },
   "consumes": [],
