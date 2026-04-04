@@ -3,12 +3,36 @@
 :toc:
 :icons: font
 
-The README makes claims. This file backs them up.
+The README makes claims. This file backs them up with evidence.
 
-[quote, README]
+== Key Claims From README
+
+[quote, README section "What is Typell?"]
 ____
-Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+Typell is the **type-theoretic verification engine** that powers PanLL's neurosymbolic intelligence. It provides the "best of the best" type system coverage for formally verified database queries.
 ____
+
+*Evidence:* The README (lines 21-29) lists 7 type system features:
+1. **Dependent types** — types that depend on values (Pi, Sigma)
+2. **Linear types** — resources used exactly once (no data leaks, no double-reads)
+3. **Session types** — protocol safety (connections always closed, transactions atomic)
+4. **Quantitative Type Theory** — resource quantity tracking (rate limits, cost analysis)
+5. **Effect systems** — explicit side effect tracking (read/write/memory)
+6. **Modal types** — contextual access control (transaction-scoped data)
+7. **Proof-carrying code** — cryptographic proof certificates attached to queries
+
+The architecture (lines 46-68) shows Typell as the central verification kernel serving PanLL's three panes (Pane-L ← constraints, Pane-N ← reasoning, Pane-W ← validated results) plus secondary consumers (VS Code, CLI, CI/CD). This is verifiable in `src/kernel/` with modules for type checking, proof engine, effect tracking, session protocol management, and language backends (lines 148-157).
+
+*Caveat:* Typell is in "Phase 0: Vision capture and repo scaffolding" (line 115). Language backends (VQL-dt++, GQL-dt++, KQL-dt++) are in design stages; only the kernel architecture exists.
+
+[quote, README section "The LLVM Analogy"]
+____
+Typell is to PanLL what LLVM is to Clang — the compiler infrastructure that any frontend can consume.
+____
+
+*Evidence:* The directory structure (lines 136-168) supports this. `src/kernel/` is the "middle-end" (type checker, proof engine, effects, session manager). `src/backends/` are the language frontends (VQL-dt++, GQL-dt++, KQL-dt++). `integrations/` are the consumers (PanLL primary, VS Code extension, CLI, CI/CD plugins). This mirrors LLVM's middle-end + backends + frontends architecture.
+
+*Caveat:* Unlike LLVM (production-ready), Typell's backends are in design/port stages, not fully functional. Primary investment is in the kernel (bidirectional type checker, proof engine).
 
 == Technology Choices
 
@@ -16,29 +40,45 @@ ____
 |===
 | Technology | Learn More
 
-| **Rust** | https://www.rust-lang.org
-| **Zig** | https://ziglang.org
-| **Idris2 ABI** | https://www.idris-lang.org
+| **Rust** | https://www.rust-lang.org (verification kernel, type checker, proof engine)
+| **Idris2 ABI** | https://www.idris-lang.org (formal specs with dependent type proofs)
+| **Zig FFI** | https://ziglang.org (C-compatible ABI bridge)
+| **JSON-RPC** | Protocol for language-agnostic consumer communication
+| **Tauri 2.0+** | PanLL desktop backend (Typell verification service)
 |===
 
 == Dogfooded Across The Account
 
-Uses the hyperpolymath ABI/FFI standard (Idris2 + Zig). Same pattern used across
-https://github.com/hyperpolymath/proven[proven],
-https://github.com/hyperpolymath/burble[burble], and
-https://github.com/hyperpolymath/gossamer[gossamer].
+Uses the hyperpolymath ABI/FFI standard (Idris2 + Zig). Same pattern across proven, burble, and gossamer.
 
-== File Map
+Typell-specific:
+- `src/abi/` — Idris2 formal specifications for type system soundness
+- `ffi/zig/` — C-compatible FFI for cross-language verification calls
+- `generated/abi/` — Auto-generated C headers from Idris2 ABI
+
+== File Map: Key Modules
 
 [cols="1,2"]
 |===
 | Path | What's There
 
-| `src/` | Source code
-| `ffi/` | Foreign function interface
-| `test(s)/` | Test suite
+| `src/abi/` | Idris2 formal specifications (type definitions with proofs)
+| `src/kernel/checker/` | Bidirectional type checker (Pi, Sigma, linear, session types)
+| `src/kernel/proof/` | Proof engine (generation, verification, caching, certificates)
+| `src/kernel/effects/` | Effect tracker (read/write/memory side effects)
+| `src/kernel/session/` | Session protocol manager (connection safety, transaction atomicity)
+| `src/kernel/protocol/` | JSON-RPC server (consumer communication)
+| `src/backends/vql/` | VQL-dt++ backend (VeriSimDB queries with dependent types)
+| `src/backends/gql/` | GQL-dt++ backend (LithoGlyph graph queries, Lean 4 bridge)
+| `src/backends/kql/` | KQL-dt++ backend (QuandleDB category-theoretic queries)
+| `integrations/panll/` | PanLL primary consumer (pane coordination)
+| `integrations/vscode/` | VS Code extension integration
+| `integrations/cli/` | Command-line interface
+| `integrations/ci/` | CI/CD pipeline plugins
+| `spec/` | Formal specifications (protocol, type-system, proof-system)
+| `docs/design/` | Design documents and vision
 |===
 
 == Questions?
 
-Open an issue or reach out directly — happy to explain anything in more detail.
+Open an issue in the hyperpolymath/typell repository for questions about type system design, proof engine architecture, or integration with PanLL and other consumers.
