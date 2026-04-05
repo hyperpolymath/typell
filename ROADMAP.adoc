@@ -6,7 +6,7 @@
 
 == Overview
 
-TypeLL is the unified type system verification kernel for the hyperpolymath ecosystem. It is to PanLL what LLVM is to Clang: the formal verification substrate that multiple language frontends compile _types_ into. TypeLL provides a 10-level type safety hierarchy used by VQL-UT, 007, Kategoria, PanLL, and the nextgen-languages suite.
+TypeLL is the unified type system verification kernel for the hyperpolymath ecosystem. It is to PanLL what LLVM is to Clang: the formal verification substrate that multiple language frontends compile _types_ into. TypeLL provides a 10-level type safety hierarchy used by VCL-total, 007, Kategoria, PanLL, and the nextgen-languages suite.
 
 == Current State (2026-03-29)
 
@@ -45,8 +45,8 @@ typell-server (HTTP/JSON-RPC on port 7800)
 | `typell-server`
 | HTTP/JSON-RPC server (port 7800) with handler dispatch
 
-| `typell-vql`
-| VQL-UT bridge — maps 10-level type safety into TypeLL (4 modules: lib, bridge, levels, rules)
+| `typell-vcl`
+| VCL-total bridge — maps 10-level type safety into TypeLL (4 modules: lib, bridge, levels, rules)
 
 | `typell-eclexia`
 | Eclexia language bridge (resource types, dimensional analysis)
@@ -107,7 +107,7 @@ typell-server (HTTP/JSON-RPC on port 7800)
 
 === Consumers
 
-* **VQL-UT** — Type-safe query language (supersedes VQL-DT); levels 7-10 map VQL-DT legacy extensions
+* **VCL-total** — Type-safe query language (supersedes VCL-DT); levels 7-10 map VCL-DT legacy extensions
 * **007** — Agent meta-language type system (tropical types, Five Facets)
 * **Kategoria** — Category theory verification; Route alpha achieved L9 (session types via Brady indexed monad)
 * **PanLL** — Cross-panel type intelligence (TypeLLService + TypeLLEngine in src/core/)
@@ -131,9 +131,9 @@ typell-server (HTTP/JSON-RPC on port 7800)
 
 === v0.2.0 — Language Bridges (COMPLETE)
 
-* [x] 14 language bridge crates (eclexia, affinescript, ephapax, wokelang, betlang, mylang, oblibeny, tangle, jtv, errorlang, phronesis, vql)
+* [x] 14 language bridge crates (eclexia, affinescript, ephapax, wokelang, betlang, mylang, oblibeny, tangle, jtv, errorlang, phronesis, vcl)
 * [x] Each bridge: lib.rs + bridge.rs + rules.rs (language-specific type lowering)
-* [x] VQL-UT bridge maps all 10 levels including VQL-DT legacy (linear, session, effects, modal, proof-carrying, QTT)
+* [x] VCL-total bridge maps all 10 levels including VCL-DT legacy (linear, session, effects, modal, proof-carrying, QTT)
 
 === v0.3.0 — Server & Integration (COMPLETE)
 
@@ -157,9 +157,9 @@ typell-server (HTTP/JSON-RPC on port 7800)
 * [ ] Performance benchmarks (large type graphs, deep unification)
 * [ ] Fuzz testing for unification and inference
 
-=== v0.6.0 — VQL-UT Deep Integration (PLANNED)
+=== v0.6.0 — VCL-total Deep Integration (PLANNED)
 
-* [ ] VQL-UT query type annotations (level metadata in query results)
+* [ ] VCL-total query type annotations (level metadata in query results)
 * [ ] Type-safe query composition (compose queries with verified type compatibility)
 * [ ] Query result type inference (infer return types from schema + query)
 * [ ] Level escalation tracking (which operations require higher levels)
@@ -182,7 +182,7 @@ typell-server (HTTP/JSON-RPC on port 7800)
 === v1.0.0 — Stable Release (PLANNED)
 
 * [ ] All 14 language bridges fully tested
-* [ ] VQL-UT and 007 integrations production-ready
+* [ ] VCL-total and 007 integrations production-ready
 * [ ] API stability guarantee (no breaking changes to core types)
 * [ ] Performance validated at scale
 * [ ] arXiv paper on 10-level type safety hierarchy

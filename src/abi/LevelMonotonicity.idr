@@ -21,7 +21,7 @@
 ||| is automatically safe at all levels M < N.
 |||
 ||| This is the central correctness claim of the TypeLL project and
-||| justifies the level-based type checking in TypedQLiser, VQL-UT,
+||| justifies the level-based type checking in TypedQLiser, VCL-total,
 ||| and StatistEase.
 |||
 ||| @see ROADMAP.adoc  — Level definitions

@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: PMPL-1.0-or-later
 // SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell
 //
-// Comprehensive test suite for the TypeLL-VQL bridge.
+// Comprehensive test suite for the TypeLL-VCL bridge.
 //
 // Tests cover:
 // - All 10 safety levels: names, ordering, subsumption, round-trip
-// - All 9 VQL modalities: serialisation/deserialisation
-// - VQL extensions: consume_after, session_protocol, effects, transaction_state
-// - Bridge mapping: VQL types to correct TypeLL UnifiedTypes
+// - All 9 VCL modalities: serialisation/deserialisation
+// - VCL extensions: consume_after, session_protocol, effects, transaction_state
+// - Bridge mapping: VCL types to correct TypeLL UnifiedTypes
 // - Level checking: queries at level N satisfy all levels <= N
 // - Safety report generation for various query configurations
 // - Typing rules: consume_after, usage_limit, session/effect compatibility,
 //   transaction transitions, federation source
 
 use typell_vql::bridge::{
-    determine_safety_level, session_protocol_to_session, vql_to_typell, vql_to_unified,
+    determine_safety_level, session_protocol_to_session, vcl_to_typell, vcl_to_unified,
     VqlEffectLabel, VqlExtensions, VqlModality, VqlQueryType, VqlSessionProtocol,
     VqlTransactionState,
 };
@@ -163,9 +163,9 @@ fn test_level_1_satisfies_only_itself() {
 
 #[test]
 fn test_query_path_names() {
-    assert_eq!(QueryPath::Slipstream.name(), "VQL (Slipstream)");
-    assert_eq!(QueryPath::Dt.name(), "VQL-DT");
-    assert_eq!(QueryPath::Ut.name(), "VQL-UT");
+    assert_eq!(QueryPath::Slipstream.name(), "VCL (Slipstream)");
+    assert_eq!(QueryPath::Dt.name(), "VCL-DT");
+    assert_eq!(QueryPath::Ut.name(), "VCL-total");
 }
 
 #[test]
@@ -175,7 +175,7 @@ fn test_query_path_max_achievable_ordering() {
 }
 
 // ============================================================================
-// VQL Modalities — serialisation round-trips (all 9)
+// VCL Modalities — serialisation round-trips (all 9)
 // ============================================================================
 
 #[test]
@@ -215,12 +215,12 @@ fn test_each_modality_produces_named_type_arg() {
         VqlModality::All,
     ];
     for m in modalities {
-        let vql = VqlQueryType {
+        let vcl = VqlQueryType {
             modalities: vec![m],
             result_fields: vec![],
             extensions: VqlExtensions::default(),
         };
-        let ty = vql_to_typell(&vql);
+        let ty = vcl_to_typell(&vcl);
         match &ty {
             Type::Named { name, args } => {
                 assert_eq!(name, "QueryResult");
@@ -243,7 +243,7 @@ fn test_each_modality_produces_named_type_arg() {
 }
 
 // ============================================================================
-// VQL Extensions — serialisation round-trips
+// VCL Extensions — serialisation round-trips
 // ============================================================================
 
 #[test]
@@ -330,17 +330,17 @@ fn test_transaction_state_serialise_round_trip() {
 }
 
 // ============================================================================
-// Bridge mapping — VQL types to TypeLL UnifiedTypes
+// Bridge mapping — VCL types to TypeLL UnifiedTypes
 // ============================================================================
 
 #[test]
 fn test_vql_to_typell_empty_modalities_gives_empty_args() {
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![],
         result_fields: vec![],
         extensions: VqlExtensions::default(),
     };
-    let ty = vql_to_typell(&vql);
+    let ty = vcl_to_typell(&vcl);
     match ty {
         Type::Named { name, args } => {
             assert_eq!(name, "QueryResult");
@@ -352,12 +352,12 @@ fn test_vql_to_typell_empty_modalities_gives_empty_args() {
 
 #[test]
 fn test_vql_to_typell_multiple_modalities() {
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![VqlModality::Graph, VqlModality::Tensor, VqlModality::Spatial],
         result_fields: vec![],
         extensions: VqlExtensions::default(),
     };
-    let ty = vql_to_typell(&vql);
+    let ty = vcl_to_typell(&vcl);
     match ty {
         Type::Named { args, .. } => assert_eq!(args.len(), 3),
         other => panic!("expected Named type, got {:?}", other),
@@ -366,12 +366,12 @@ fn test_vql_to_typell_multiple_modalities() {
 
 #[test]
 fn test_vql_to_unified_no_extensions_gives_omega_unrestricted() {
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![VqlModality::Graph],
         result_fields: vec![],
         extensions: VqlExtensions::default(),
     };
-    let unified = vql_to_unified(&vql);
+    let unified = vcl_to_unified(&vcl);
     assert_eq!(unified.usage, UsageQuantifier::Omega);
     assert_eq!(unified.discipline, TypeDiscipline::Unrestricted);
     assert!(unified.effects.is_empty());
@@ -380,7 +380,7 @@ fn test_vql_to_unified_no_extensions_gives_omega_unrestricted() {
 
 #[test]
 fn test_vql_to_unified_consume_after_gives_linear() {
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![VqlModality::Vector],
         result_fields: vec![],
         extensions: VqlExtensions {
@@ -388,14 +388,14 @@ fn test_vql_to_unified_consume_after_gives_linear() {
             ..Default::default()
         },
     };
-    let unified = vql_to_unified(&vql);
+    let unified = vcl_to_unified(&vcl);
     assert_eq!(unified.usage, UsageQuantifier::Bounded(7));
     assert_eq!(unified.discipline, TypeDiscipline::Linear);
 }
 
 #[test]
 fn test_vql_to_unified_usage_limit_gives_linear() {
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![VqlModality::Document],
         result_fields: vec![],
         extensions: VqlExtensions {
@@ -403,14 +403,14 @@ fn test_vql_to_unified_usage_limit_gives_linear() {
             ..Default::default()
         },
     };
-    let unified = vql_to_unified(&vql);
+    let unified = vcl_to_unified(&vcl);
     assert_eq!(unified.usage, UsageQuantifier::Bounded(3));
     assert_eq!(unified.discipline, TypeDiscipline::Linear);
 }
 
 #[test]
 fn test_vql_to_unified_consume_after_takes_priority_over_usage_limit() {
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![VqlModality::Graph],
         result_fields: vec![],
         extensions: VqlExtensions {
@@ -419,7 +419,7 @@ fn test_vql_to_unified_consume_after_takes_priority_over_usage_limit() {
             ..Default::default()
         },
     };
-    let unified = vql_to_unified(&vql);
+    let unified = vcl_to_unified(&vcl);
     assert_eq!(unified.usage, UsageQuantifier::Bounded(2));
 }
 
@@ -434,7 +434,7 @@ fn test_vql_to_unified_all_effect_labels_map_correctly() {
         VqlEffectLabel::Federate,
         VqlEffectLabel::Custom("CustomEffect".to_string()),
     ];
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![VqlModality::All],
         result_fields: vec![],
         extensions: VqlExtensions {
@@ -442,7 +442,7 @@ fn test_vql_to_unified_all_effect_labels_map_correctly() {
             ..Default::default()
         },
     };
-    let unified = vql_to_unified(&vql);
+    let unified = vcl_to_unified(&vcl);
     assert_eq!(unified.effects.len(), 7);
     // Verify specific mappings.
     assert_eq!(unified.effects[0], Effect::IO); // Read -> IO
@@ -452,7 +452,7 @@ fn test_vql_to_unified_all_effect_labels_map_correctly() {
 
 #[test]
 fn test_vql_to_unified_proof_attached_creates_one_refinement() {
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![VqlModality::Provenance],
         result_fields: vec![],
         extensions: VqlExtensions {
@@ -460,7 +460,7 @@ fn test_vql_to_unified_proof_attached_creates_one_refinement() {
             ..Default::default()
         },
     };
-    let unified = vql_to_unified(&vql);
+    let unified = vcl_to_unified(&vcl);
     assert_eq!(unified.refinements.len(), 1);
 }
 
@@ -523,43 +523,43 @@ fn test_session_protocol_custom() {
 
 #[test]
 fn test_safety_empty_query_is_level_1_slipstream() {
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![],
         result_fields: vec![],
         extensions: VqlExtensions::default(),
     };
-    let report = determine_safety_level(&vql);
+    let report = determine_safety_level(&vcl);
     assert_eq!(report.max_level, SafetyLevel::ParseTime);
     assert_eq!(report.query_path, QueryPath::Slipstream);
 }
 
 #[test]
 fn test_safety_schema_bound_no_modalities_is_level_2() {
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![],
         result_fields: vec!["id".to_string()],
         extensions: VqlExtensions::default(),
     };
-    let report = determine_safety_level(&vql);
+    let report = determine_safety_level(&vcl);
     // Level 3 fails (no modalities), so max_level = SchemaBinding.
     assert_eq!(report.max_level, SafetyLevel::SchemaBinding);
 }
 
 #[test]
 fn test_safety_level_4_null_safe() {
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![VqlModality::Graph],
         result_fields: vec!["name".to_string()],
         extensions: VqlExtensions::default(),
     };
-    let report = determine_safety_level(&vql);
+    let report = determine_safety_level(&vcl);
     assert_eq!(report.max_level, SafetyLevel::NullSafe);
     assert_eq!(report.query_path, QueryPath::Dt);
 }
 
 #[test]
 fn test_safety_level_5_injection_proof() {
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![VqlModality::Graph],
         result_fields: vec!["name".to_string()],
         extensions: VqlExtensions {
@@ -567,7 +567,7 @@ fn test_safety_level_5_injection_proof() {
             ..Default::default()
         },
     };
-    let report = determine_safety_level(&vql);
+    let report = determine_safety_level(&vcl);
     // Level 5 passes, level 6 also passes (schema-bound), but level 7
     // requires usage_limit, so max = ResultType (6).
     assert_eq!(report.max_level, SafetyLevel::ResultType);
@@ -575,7 +575,7 @@ fn test_safety_level_5_injection_proof() {
 
 #[test]
 fn test_safety_level_8_effect_tracking() {
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![VqlModality::Document],
         result_fields: vec!["content".to_string()],
         extensions: VqlExtensions {
@@ -585,14 +585,14 @@ fn test_safety_level_8_effect_tracking() {
             ..Default::default()
         },
     };
-    let report = determine_safety_level(&vql);
+    let report = determine_safety_level(&vcl);
     assert_eq!(report.max_level, SafetyLevel::EffectTracking);
     assert_eq!(report.query_path, QueryPath::Ut);
 }
 
 #[test]
 fn test_safety_level_9_temporal_with_session() {
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![VqlModality::Graph],
         result_fields: vec!["x".to_string()],
         extensions: VqlExtensions {
@@ -603,13 +603,13 @@ fn test_safety_level_9_temporal_with_session() {
             ..Default::default()
         },
     };
-    let report = determine_safety_level(&vql);
+    let report = determine_safety_level(&vcl);
     assert_eq!(report.max_level, SafetyLevel::Temporal);
 }
 
 #[test]
 fn test_safety_level_9_temporal_with_transaction_state() {
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![VqlModality::Graph],
         result_fields: vec!["x".to_string()],
         extensions: VqlExtensions {
@@ -620,13 +620,13 @@ fn test_safety_level_9_temporal_with_transaction_state() {
             ..Default::default()
         },
     };
-    let report = determine_safety_level(&vql);
+    let report = determine_safety_level(&vcl);
     assert_eq!(report.max_level, SafetyLevel::Temporal);
 }
 
 #[test]
 fn test_safety_level_10_full_linearity() {
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![VqlModality::Graph],
         result_fields: vec!["x".to_string()],
         extensions: VqlExtensions {
@@ -638,7 +638,7 @@ fn test_safety_level_10_full_linearity() {
             transaction_state: None,
         },
     };
-    let report = determine_safety_level(&vql);
+    let report = determine_safety_level(&vcl);
     assert_eq!(report.max_level, SafetyLevel::Linearity);
     assert_eq!(report.query_path, QueryPath::Ut);
     assert_eq!(report.checks.len(), 10);
@@ -647,23 +647,23 @@ fn test_safety_level_10_full_linearity() {
 
 #[test]
 fn test_safety_report_has_exactly_10_checks() {
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![VqlModality::Graph],
         result_fields: vec![],
         extensions: VqlExtensions::default(),
     };
-    let report = determine_safety_level(&vql);
+    let report = determine_safety_level(&vcl);
     assert_eq!(report.checks.len(), 10);
 }
 
 #[test]
 fn test_safety_report_failed_checks_have_diagnostics() {
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![VqlModality::Graph],
         result_fields: vec![],
         extensions: VqlExtensions::default(),
     };
-    let report = determine_safety_level(&vql);
+    let report = determine_safety_level(&vcl);
     // Level 2 (SchemaBinding) should fail because result_fields is empty.
     let l2 = &report.checks[1];
     assert!(!l2.passed);
@@ -672,12 +672,12 @@ fn test_safety_report_failed_checks_have_diagnostics() {
 
 #[test]
 fn test_safety_report_serialise_round_trip() {
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![VqlModality::Graph],
         result_fields: vec!["x".to_string()],
         extensions: VqlExtensions::default(),
     };
-    let report = determine_safety_level(&vql);
+    let report = determine_safety_level(&vcl);
     let json = serde_json::to_string(&report).expect("serialise report");
     let recovered: typell_vql::levels::SafetyReport =
         serde_json::from_str(&json).expect("deserialise report");

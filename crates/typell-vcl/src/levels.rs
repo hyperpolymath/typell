@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: PMPL-1.0-or-later
 // SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell
 
-//! VQL-UT 10-level type safety hierarchy.
+//! VCL-total 10-level type safety hierarchy.
 //!
 //! Each level builds on the previous, with monotonically increasing
 //! type safety guarantees. A query at level N satisfies all levels <= N.
 
 use serde::{Deserialize, Serialize};
 
-/// The 10 VQL-UT type safety levels.
+/// The 10 VCL-total type safety levels.
 ///
 /// Ordered from weakest (Level1) to strongest (Level10).
 /// Each level subsumes all lower levels.
@@ -118,7 +118,7 @@ pub const ALL_LEVELS: [SafetyLevel; 10] = [
     SafetyLevel::Linearity,
 ];
 
-/// Result of checking a query against the VQL-UT safety hierarchy.
+/// Result of checking a query against the VCL-total safety hierarchy.
 ///
 /// Records which levels passed, which failed, and the maximum
 /// achieved safety level.
@@ -128,7 +128,7 @@ pub struct SafetyReport {
     pub max_level: SafetyLevel,
     /// Per-level check results.
     pub checks: Vec<LevelCheck>,
-    /// The query path used: VQL (slipstream), VQL-DT, or VQL-UT.
+    /// The query path used: VCL (slipstream), VCL-DT, or VCL-total.
     pub query_path: QueryPath,
 }
 
@@ -143,14 +143,14 @@ pub struct LevelCheck {
     pub diagnostic: String,
 }
 
-/// The three VQL query paths.
+/// The three VCL query paths.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum QueryPath {
-    /// VQL Slipstream — runtime checks only, no static type safety.
+    /// VCL Slipstream — runtime checks only, no static type safety.
     Slipstream,
-    /// VQL-DT — dependent types via Lean (levels 1–6 + some level 5 proofs).
+    /// VCL-DT — dependent types via Lean (levels 1–6 + some level 5 proofs).
     Dt,
-    /// VQL-UT — full 10-level verification via Idris2.
+    /// VCL-total — full 10-level verification via Idris2.
     Ut,
 }
 
@@ -158,9 +158,9 @@ impl QueryPath {
     /// Returns the human-readable name of this query path.
     pub fn name(self) -> &'static str {
         match self {
-            Self::Slipstream => "VQL (Slipstream)",
-            Self::Dt => "VQL-DT",
-            Self::Ut => "VQL-UT",
+            Self::Slipstream => "VCL (Slipstream)",
+            Self::Dt => "VCL-DT",
+            Self::Ut => "VCL-total",
         }
     }
 

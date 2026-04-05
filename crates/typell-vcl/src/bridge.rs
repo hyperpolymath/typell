@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: PMPL-1.0-or-later
 // SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell
 
-//! Bridge from VQL-UT query types to TypeLL's unified types.
+//! Bridge from VCL-total query types to TypeLL's unified types.
 //!
-//! Maps VQL-UT's 10-level type safety hierarchy into TypeLL concepts.
-//! Legacy VQL-dt++ extensions are preserved and mapped to their
-//! corresponding VQL-UT levels:
+//! Maps VCL-total's 10-level type safety hierarchy into TypeLL concepts.
+//! Legacy VCL-dt++ extensions are preserved and mapped to their
+//! corresponding VCL-total levels:
 //!
-//! | VQL-UT Level | VQL-dt++ Extension          | TypeLL Concept                    |
+//! | VCL-total Level | VCL-dt++ Extension          | TypeLL Concept                    |
 //! |--------------|-----------------------------|-----------------------------------|
 //! | 5            | `PROOF ATTACHED thm`        | Refinement predicate              |
 //! | 8            | `EFFECTS { Read, Write }`   | `Effect::Named("Read")` etc.      |
@@ -24,7 +24,7 @@ use typell_core::types::{
 
 use crate::levels::{SafetyLevel, SafetyReport, LevelCheck, QueryPath};
 
-/// VQL modality (one of the 8 query modalities).
+/// VCL modality (one of the 8 query modalities).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum VqlModality {
     Graph,
@@ -38,7 +38,7 @@ pub enum VqlModality {
     All,
 }
 
-/// VQL session protocol.
+/// VCL session protocol.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum VqlSessionProtocol {
     ReadOnly,
@@ -48,7 +48,7 @@ pub enum VqlSessionProtocol {
     Custom(String),
 }
 
-/// VQL effect label.
+/// VCL effect label.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum VqlEffectLabel {
     Read,
@@ -60,7 +60,7 @@ pub enum VqlEffectLabel {
     Custom(String),
 }
 
-/// VQL transaction state.
+/// VCL transaction state.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum VqlTransactionState {
     Fresh,
@@ -71,7 +71,7 @@ pub enum VqlTransactionState {
     Custom(String),
 }
 
-/// VQL-dt++ extension annotations.
+/// VCL-dt++ extension annotations.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct VqlExtensions {
     pub consume_after: Option<u64>,
@@ -82,7 +82,7 @@ pub struct VqlExtensions {
     pub usage_limit: Option<u64>,
 }
 
-/// A VQL query type in serialized form.
+/// A VCL query type in serialized form.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VqlQueryType {
     pub modalities: Vec<VqlModality>,
@@ -90,14 +90,14 @@ pub struct VqlQueryType {
     pub extensions: VqlExtensions,
 }
 
-/// Convert a VQL query type to a TypeLL base type.
+/// Convert a VCL query type to a TypeLL base type.
 ///
-/// A VQL query result is modelled as a Named type parameterised by its
+/// A VCL query result is modelled as a Named type parameterised by its
 /// modalities and result fields.
-pub fn vql_to_typell(vql: &VqlQueryType) -> Type {
+pub fn vcl_to_typell(vcl: &VqlQueryType) -> Type {
     Type::Named {
         name: "QueryResult".to_string(),
-        args: vql
+        args: vcl
             .modalities
             .iter()
             .map(|m| Type::Named {
@@ -108,14 +108,14 @@ pub fn vql_to_typell(vql: &VqlQueryType) -> Type {
     }
 }
 
-/// Convert a VQL query type with extensions to a full TypeLL unified type.
-pub fn vql_to_unified(vql: &VqlQueryType) -> UnifiedType {
-    let base = vql_to_typell(vql);
+/// Convert a VCL query type with extensions to a full TypeLL unified type.
+pub fn vcl_to_unified(vcl: &VqlQueryType) -> UnifiedType {
+    let base = vcl_to_typell(vcl);
 
     // Usage from CONSUME AFTER or USAGE LIMIT
-    let usage = if let Some(n) = vql.extensions.consume_after {
+    let usage = if let Some(n) = vcl.extensions.consume_after {
         UsageQuantifier::Bounded(n)
-    } else if let Some(n) = vql.extensions.usage_limit {
+    } else if let Some(n) = vcl.extensions.usage_limit {
         UsageQuantifier::Bounded(n)
     } else {
         UsageQuantifier::Omega
@@ -129,7 +129,7 @@ pub fn vql_to_unified(vql: &VqlQueryType) -> UnifiedType {
     };
 
     // Effects from EFFECTS clause
-    let effects = vql
+    let effects = vcl
         .extensions
         .effects
         .as_ref()
@@ -137,7 +137,7 @@ pub fn vql_to_unified(vql: &VqlQueryType) -> UnifiedType {
         .unwrap_or_default();
 
     // Proof as refinement
-    let refinements = vql
+    let refinements = vcl
         .extensions
         .proof_attached
         .as_ref()
@@ -154,7 +154,7 @@ pub fn vql_to_unified(vql: &VqlQueryType) -> UnifiedType {
     }
 }
 
-/// Convert a VQL session protocol to a TypeLL session type.
+/// Convert a VCL session protocol to a TypeLL session type.
 pub fn session_protocol_to_session(proto: &VqlSessionProtocol) -> SessionType {
     match proto {
         VqlSessionProtocol::ReadOnly => SessionType::Recv(
@@ -210,7 +210,7 @@ pub fn session_protocol_to_session(proto: &VqlSessionProtocol) -> SessionType {
     }
 }
 
-/// Map a VQL effect label to a TypeLL effect.
+/// Map a VCL effect label to a TypeLL effect.
 fn map_vql_effect(label: &VqlEffectLabel) -> Effect {
     match label {
         VqlEffectLabel::Read => Effect::IO,
@@ -237,11 +237,11 @@ fn modality_name(m: &VqlModality) -> &str {
     }
 }
 
-/// Determine the VQL-UT safety level achieved by a query.
+/// Determine the VCL-total safety level achieved by a query.
 ///
 /// Checks each level in order and stops at the first failure.
 /// Returns a safety report with per-level diagnostics.
-pub fn determine_safety_level(vql: &VqlQueryType) -> SafetyReport {
+pub fn determine_safety_level(vcl: &VqlQueryType) -> SafetyReport {
     let mut checks = Vec::new();
     let mut max_level = SafetyLevel::ParseTime;
 
@@ -253,7 +253,7 @@ pub fn determine_safety_level(vql: &VqlQueryType) -> SafetyReport {
     });
 
     // Level 2: Schema-binding — result fields must be non-empty (schema resolved).
-    let l2_pass = !vql.result_fields.is_empty();
+    let l2_pass = !vcl.result_fields.is_empty();
     checks.push(LevelCheck {
         level: SafetyLevel::SchemaBinding,
         passed: l2_pass,
@@ -262,7 +262,7 @@ pub fn determine_safety_level(vql: &VqlQueryType) -> SafetyReport {
     if l2_pass { max_level = SafetyLevel::SchemaBinding; }
 
     // Level 3: Type-compatible operations — modalities are valid enum variants.
-    let l3_pass = !vql.modalities.is_empty();
+    let l3_pass = !vcl.modalities.is_empty();
     checks.push(LevelCheck {
         level: SafetyLevel::TypeCompatible,
         passed: l3_pass,
@@ -281,7 +281,7 @@ pub fn determine_safety_level(vql: &VqlQueryType) -> SafetyReport {
     if l4_pass { max_level = SafetyLevel::NullSafe; }
 
     // Level 5: Injection-proof — proof attachment provides refinement predicates.
-    let l5_pass = l4_pass && vql.extensions.proof_attached.is_some();
+    let l5_pass = l4_pass && vcl.extensions.proof_attached.is_some();
     checks.push(LevelCheck {
         level: SafetyLevel::InjectionProof,
         passed: l5_pass,
@@ -299,7 +299,7 @@ pub fn determine_safety_level(vql: &VqlQueryType) -> SafetyReport {
     if l5_pass && l6_pass { max_level = SafetyLevel::ResultType; }
 
     // Level 7: Cardinality safety — usage limit provides bounded quantifiers.
-    let l7_pass = l6_pass && vql.extensions.usage_limit.is_some();
+    let l7_pass = l6_pass && vcl.extensions.usage_limit.is_some();
     checks.push(LevelCheck {
         level: SafetyLevel::Cardinality,
         passed: l7_pass,
@@ -308,7 +308,7 @@ pub fn determine_safety_level(vql: &VqlQueryType) -> SafetyReport {
     if l5_pass && l7_pass { max_level = SafetyLevel::Cardinality; }
 
     // Level 8: Effect-tracking — effects clause required.
-    let l8_pass = l7_pass && vql.extensions.effects.as_ref().map_or(false, |e| !e.is_empty());
+    let l8_pass = l7_pass && vcl.extensions.effects.as_ref().map_or(false, |e| !e.is_empty());
     checks.push(LevelCheck {
         level: SafetyLevel::EffectTracking,
         passed: l8_pass,
@@ -317,8 +317,8 @@ pub fn determine_safety_level(vql: &VqlQueryType) -> SafetyReport {
     if l8_pass { max_level = SafetyLevel::EffectTracking; }
 
     // Level 9: Temporal safety — session protocol or transaction state required.
-    let l9_pass = l8_pass && (vql.extensions.session_protocol.is_some()
-                              || vql.extensions.transaction_state.is_some());
+    let l9_pass = l8_pass && (vcl.extensions.session_protocol.is_some()
+                              || vcl.extensions.transaction_state.is_some());
     checks.push(LevelCheck {
         level: SafetyLevel::Temporal,
         passed: l9_pass,
@@ -327,7 +327,7 @@ pub fn determine_safety_level(vql: &VqlQueryType) -> SafetyReport {
     if l9_pass { max_level = SafetyLevel::Temporal; }
 
     // Level 10: Linearity safety — consume_after or usage_limit with linear discipline.
-    let l10_pass = l9_pass && vql.extensions.consume_after.is_some();
+    let l10_pass = l9_pass && vcl.extensions.consume_after.is_some();
     checks.push(LevelCheck {
         level: SafetyLevel::Linearity,
         passed: l10_pass,
@@ -361,12 +361,12 @@ mod tests {
 
     #[test]
     fn test_basic_query_type() {
-        let vql = VqlQueryType {
+        let vcl = VqlQueryType {
             modalities: vec![VqlModality::Graph, VqlModality::Vector],
             result_fields: vec!["name".to_string()],
             extensions: VqlExtensions::default(),
         };
-        let ty = vql_to_typell(&vql);
+        let ty = vcl_to_typell(&vcl);
         match ty {
             Type::Named { name, args } => {
                 assert_eq!(name, "QueryResult");
@@ -378,7 +378,7 @@ mod tests {
 
     #[test]
     fn test_consume_after_gives_bounded_usage() {
-        let vql = VqlQueryType {
+        let vcl = VqlQueryType {
             modalities: vec![VqlModality::Graph],
             result_fields: vec![],
             extensions: VqlExtensions {
@@ -386,14 +386,14 @@ mod tests {
                 ..Default::default()
             },
         };
-        let unified = vql_to_unified(&vql);
+        let unified = vcl_to_unified(&vcl);
         assert_eq!(unified.usage, UsageQuantifier::Bounded(3));
         assert_eq!(unified.discipline, TypeDiscipline::Linear);
     }
 
     #[test]
     fn test_effects_clause() {
-        let vql = VqlQueryType {
+        let vcl = VqlQueryType {
             modalities: vec![VqlModality::Document],
             result_fields: vec![],
             extensions: VqlExtensions {
@@ -401,14 +401,14 @@ mod tests {
                 ..Default::default()
             },
         };
-        let unified = vql_to_unified(&vql);
+        let unified = vcl_to_unified(&vcl);
         assert_eq!(unified.effects.len(), 2);
         assert_eq!(unified.effects[0], Effect::IO);
     }
 
     #[test]
     fn test_proof_attached_creates_refinement() {
-        let vql = VqlQueryType {
+        let vcl = VqlQueryType {
             modalities: vec![VqlModality::Provenance],
             result_fields: vec![],
             extensions: VqlExtensions {
@@ -416,7 +416,7 @@ mod tests {
                 ..Default::default()
             },
         };
-        let unified = vql_to_unified(&vql);
+        let unified = vcl_to_unified(&vcl);
         assert_eq!(unified.refinements.len(), 1);
     }
 
@@ -434,19 +434,19 @@ mod tests {
 
     #[test]
     fn test_safety_level_basic_query() {
-        let vql = VqlQueryType {
+        let vcl = VqlQueryType {
             modalities: vec![VqlModality::Graph],
             result_fields: vec!["name".to_string()],
             extensions: VqlExtensions::default(),
         };
-        let report = determine_safety_level(&vql);
+        let report = determine_safety_level(&vcl);
         assert_eq!(report.max_level, SafetyLevel::NullSafe);
         assert_eq!(report.query_path, QueryPath::Dt);
     }
 
     #[test]
     fn test_safety_level_full_ut() {
-        let vql = VqlQueryType {
+        let vcl = VqlQueryType {
             modalities: vec![VqlModality::Graph],
             result_fields: vec!["name".to_string()],
             extensions: VqlExtensions {
@@ -458,7 +458,7 @@ mod tests {
                 usage_limit: Some(10),
             },
         };
-        let report = determine_safety_level(&vql);
+        let report = determine_safety_level(&vcl);
         assert_eq!(report.max_level, SafetyLevel::Linearity);
         assert_eq!(report.query_path, QueryPath::Ut);
         assert_eq!(report.checks.len(), 10);
@@ -467,7 +467,7 @@ mod tests {
 
     #[test]
     fn test_safety_level_partial_ut() {
-        let vql = VqlQueryType {
+        let vcl = VqlQueryType {
             modalities: vec![VqlModality::Document],
             result_fields: vec!["content".to_string()],
             extensions: VqlExtensions {
@@ -477,7 +477,7 @@ mod tests {
                 ..Default::default()
             },
         };
-        let report = determine_safety_level(&vql);
+        let report = determine_safety_level(&vcl);
         // Has effects + proof + usage_limit but no session/consume_after
         assert_eq!(report.max_level, SafetyLevel::EffectTracking);
         assert_eq!(report.query_path, QueryPath::Ut);

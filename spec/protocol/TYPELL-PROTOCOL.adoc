@@ -148,10 +148,10 @@ protocol layered over this base protocol.
 | `generate_obligations`
 | Proof obligation extraction for external provers
 
-| `/api/v1/vql-ut/check`
+| `/api/v1/vcl-total/check`
 | `POST`
-| `vql_ut_check`
-| VQL-UT 10-level type safety checking
+| `vcl_ut_check`
+| VCL-total 10-level type safety checking
 |===
 
 == Data Types
@@ -164,8 +164,8 @@ POST requests. It controls language-aware routing and feature selection.
 [source,json]
 ----
 {
-  "language": "vql",
-  "dialect": "vql-ut",
+  "language": "vcl",
+  "dialect": "vcl-total",
   "features": ["dependent", "linear"],
   "domain": "",
   "mode": "",
@@ -181,14 +181,14 @@ POST requests. It controls language-aware routing and feature selection.
 | `language`
 | `string`
 | No
-| Target language identifier. One of: `vql`, `schema`, `my-lang`, `idris2`,
+| Target language identifier. One of: `vcl`, `schema`, `my-lang`, `idris2`,
   `constraint`, `config`, `policy`, `game-data`, `metadata`, `code`.
   Defaults to generic code checking if empty or unrecognised.
 
 | `dialect`
 | `string`
 | No
-| Dialect within the language (e.g., `vql-ut`, `solo`, `duet`).
+| Dialect within the language (e.g., `vcl-total`, `solo`, `duet`).
 
 | `features`
 | `string[]`
@@ -239,7 +239,7 @@ otherwise                   => TypeDiscipline::Affine
 ----
 {
   "expression": "<expression-to-check>",
-  "context": "{\"language\":\"vql\",\"features\":[\"linear\"]}"
+  "context": "{\"language\":\"vcl\",\"features\":[\"linear\"]}"
 }
 ----
 
@@ -326,7 +326,7 @@ The unified response type for all checking endpoints.
 | `string[]`
 | Active type feature codes. Machine-readable tags indicating which
   type system features were activated (e.g., `dep`, `lin`, `eff`,
-  `proof`, `vql-ut-l7`, `path:query`).
+  `proof`, `vcl-total-l7`, `path:query`).
 
 | `usage`
 | `string`
@@ -341,7 +341,7 @@ The unified response type for all checking endpoints.
 | `inference_source`
 | `string`
 | How the type was determined. Values include `inferred`, `checked`,
-  `vql-ut-bridge`, `schema-bridge`, or language-specific identifiers.
+  `vcl-total-bridge`, `schema-bridge`, or language-specific identifiers.
 |===
 
 === HealthResponse
@@ -353,10 +353,10 @@ The unified response type for all checking endpoints.
   "version": "0.1.0",
   "features": [
     "unification", "inference", "dimensional", "linear",
-    "effects", "session", "qtt", "proof-obligations", "vql-ut"
+    "effects", "session", "qtt", "proof-obligations", "vcl-total"
   ],
   "languages": [
-    "vql", "schema", "my-lang", "idris2", "constraint",
+    "vcl", "schema", "my-lang", "idris2", "constraint",
     "config", "policy", "game-data", "metadata"
   ]
 }
@@ -489,8 +489,8 @@ curl http://localhost:7800/api/v1/health
   "status": "ok",
   "version": "0.1.0",
   "features": ["unification", "inference", "dimensional", "linear",
-                "effects", "session", "qtt", "proof-obligations", "vql-ut"],
-  "languages": ["vql", "schema", "my-lang", "idris2", "constraint",
+                "effects", "session", "qtt", "proof-obligations", "vcl-total"],
+  "languages": ["vcl", "schema", "my-lang", "idris2", "constraint",
                 "config", "policy", "game-data", "metadata"]
 }
 ----
@@ -712,26 +712,26 @@ the context).
 The returned obligations are designed to be consumed by ECHIDNA or another
 external prover. Each obligation has a unique ID (`PO-NNNN`) for tracking.
 
-=== POST /api/v1/vql-ut/check
+=== POST /api/v1/vcl-total/check
 
-VQL-UT 10-level type safety checking.
+VCL-total 10-level type safety checking.
 
-*Request:* `CheckRequest` with a VQL query expression (either JSON-encoded
-`VqlQueryType` or raw VQL query text).
+*Request:* `CheckRequest` with a VCL query expression (either JSON-encoded
+`VqlQueryType` or raw VCL query text).
 
-*Response:* `CheckResult` with VQL-specific annotations.
+*Response:* `CheckResult` with VCL-specific annotations.
 
 *Semantics:*
 
-. Parse the expression as a `VqlQueryType` (JSON) or extract VQL features
+. Parse the expression as a `VqlQueryType` (JSON) or extract VCL features
   from raw query text.
 . Run the 10-level safety analysis via `determine_safety_level()`.
-. Execute VQL-specific validation rules (consume-after bounds, usage limits,
+. Execute VCL-specific validation rules (consume-after bounds, usage limits,
   session-effect compatibility).
-. Convert the VQL type to a TypeLL `UnifiedType` via the `typell-vql` bridge.
+. Convert the VCL type to a TypeLL `UnifiedType` via the `typell-vcl` bridge.
 . Return a `CheckResult` with:
   - `explanation` containing the safety level and query path
-  - `features` containing level codes (e.g., `vql-ut-l7`)
+  - `features` containing level codes (e.g., `vcl-total-l7`)
   - `linearity_issues` containing rule validation errors
   - `proof_obligations` containing failed safety level diagnostics
 
@@ -790,9 +790,9 @@ TypeLL's unified `Type` system.
 |===
 | Language | Bridge Crate | Notes
 
-| `vql`
-| `typell-vql`
-| VQL-UT 10-level safety analysis. Parses JSON `VqlQueryType` or raw query text.
+| `vcl`
+| `typell-vcl`
+| VCL-total 10-level safety analysis. Parses JSON `VqlQueryType` or raw query text.
 
 | `schema`
 | (inline)

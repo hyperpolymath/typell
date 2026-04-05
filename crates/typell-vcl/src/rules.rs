@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PMPL-1.0-or-later
 // SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell
 
-//! VQL-specific typing rules for TypeLL.
+//! VCL-specific typing rules for TypeLL.
 //!
 //! Implements query extension validation and modality compatibility checks.
 

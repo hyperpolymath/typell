@@ -2,8 +2,8 @@
 # SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell
 
 [package]
-name = "typell-vql"
-description = "TypeLL bridge for VQL-UT — maps all 10 type safety levels into TypeLL's unified type system (supersedes VQL-DT)"
+name = "typell-vcl"
+description = "TypeLL bridge for VCL-total — maps all 10 type safety levels into TypeLL's unified type system (supersedes VCL-DT)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

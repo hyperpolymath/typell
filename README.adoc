@@ -58,7 +58,7 @@ VS Code extensions, CLI tools, and CI/CD pipelines are secondary consumers.
 │  ├─ Effect Tracker                           │
 │  ├─ Session Protocol Manager                 │
 │  └─ Language Backends                        │
-│     ├─ VQL-dt++ (VeriSimDB)                  │
+│     ├─ VCL-dt++ (VeriSimDB)                  │
 │     ├─ GQL-dt++ (LithoGlyph)                │
 │     └─ KQL-dt++ (QuandleDB)                 │
 └─────────────────────────────────────────────┘
@@ -73,7 +73,7 @@ VS Code extensions, CLI tools, and CI/CD pipelines are secondary consumers.
 |===
 |Backend |Database |Status |Strategy
 
-|VQL-dt++
+|VCL-dt++
 |VeriSimDB
 |Port from ReScript
 |8-modality queries, cross-modal proofs, hexad types
@@ -151,7 +151,7 @@ typell/
 │   │   ├── session/               # Session protocol manager
 │   │   └── protocol/              # JSON-RPC server
 │   └── backends/                  # Language backends
-│       ├── vql/                   # VQL-dt++ (VeriSimDB)
+│       ├── vcl/                   # VCL-dt++ (VeriSimDB)
 │       ├── gql/                   # GQL-dt++ (LithoGlyph)
 │       └── kql/                   # KQL-dt++ (QuandleDB)
 ├── ffi/zig/                       # Zig FFI implementation

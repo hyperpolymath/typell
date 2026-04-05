@@ -23,14 +23,14 @@ ____
 
 The architecture (lines 46-68) shows Typell as the central verification kernel serving PanLL's three panes (Pane-L ← constraints, Pane-N ← reasoning, Pane-W ← validated results) plus secondary consumers (VS Code, CLI, CI/CD). This is verifiable in `src/kernel/` with modules for type checking, proof engine, effect tracking, session protocol management, and language backends (lines 148-157).
 
-*Caveat:* Typell is in "Phase 0: Vision capture and repo scaffolding" (line 115). Language backends (VQL-dt++, GQL-dt++, KQL-dt++) are in design stages; only the kernel architecture exists.
+*Caveat:* Typell is in "Phase 0: Vision capture and repo scaffolding" (line 115). Language backends (VCL-dt++, GQL-dt++, KQL-dt++) are in design stages; only the kernel architecture exists.
 
 [quote, README section "The LLVM Analogy"]
 ____
 Typell is to PanLL what LLVM is to Clang — the compiler infrastructure that any frontend can consume.
 ____
 
-*Evidence:* The directory structure (lines 136-168) supports this. `src/kernel/` is the "middle-end" (type checker, proof engine, effects, session manager). `src/backends/` are the language frontends (VQL-dt++, GQL-dt++, KQL-dt++). `integrations/` are the consumers (PanLL primary, VS Code extension, CLI, CI/CD plugins). This mirrors LLVM's middle-end + backends + frontends architecture.
+*Evidence:* The directory structure (lines 136-168) supports this. `src/kernel/` is the "middle-end" (type checker, proof engine, effects, session manager). `src/backends/` are the language frontends (VCL-dt++, GQL-dt++, KQL-dt++). `integrations/` are the consumers (PanLL primary, VS Code extension, CLI, CI/CD plugins). This mirrors LLVM's middle-end + backends + frontends architecture.
 
 *Caveat:* Unlike LLVM (production-ready), Typell's backends are in design/port stages, not fully functional. Primary investment is in the kernel (bidirectional type checker, proof engine).
 
@@ -68,7 +68,7 @@ Typell-specific:
 | `src/kernel/effects/` | Effect tracker (read/write/memory side effects)
 | `src/kernel/session/` | Session protocol manager (connection safety, transaction atomicity)
 | `src/kernel/protocol/` | JSON-RPC server (consumer communication)
-| `src/backends/vql/` | VQL-dt++ backend (VeriSimDB queries with dependent types)
+| `src/backends/vcl/` | VCL-dt++ backend (VeriSimDB queries with dependent types)
 | `src/backends/gql/` | GQL-dt++ backend (LithoGlyph graph queries, Lean 4 bridge)
 | `src/backends/kql/` | KQL-dt++ backend (QuandleDB category-theoretic queries)
 | `integrations/panll/` | PanLL primary consumer (pane coordination)

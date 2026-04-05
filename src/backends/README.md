@@ -11,9 +11,9 @@ effect inference.
 
 ```
 backends/
-├── vql/    # VQL-dt++ backend (VeriSimDB)
+├── vcl/    # VCL-dt++ backend (VeriSimDB)
 │           8-modality queries, cross-modal proofs, hexad types.
-│           Ported from nextgen-databases/verisimdb/src/vql/ (ReScript).
+│           Ported from nextgen-databases/verisim/src/vcl/ (ReScript).
 │
 ├── gql/    # GQL-dt++ backend (LithoGlyph)
 │           Knowledge graph queries, RATIONALE clause, refinement types.
@@ -31,7 +31,7 @@ backends/
 1. **Parse** query source into language-specific AST
 2. **Transform** AST into kernel-compatible representation
 3. **Provide** language-specific typing rules to the kernel
-4. **Handle** language-specific proof kinds (e.g. VQL's EXISTENCE, GQL's RATIONALE)
+4. **Handle** language-specific proof kinds (e.g. VCL's EXISTENCE, GQL's RATIONALE)
 5. **Format** kernel results back into language-specific feedback
 
 ## Adding a New Backend

@@ -3,12 +3,12 @@
 //
 // Integration tests for the TypeLL workspace.
 //
-// Exercises the full pipeline: TypeLL core -> VQL bridge -> level checking.
+// Exercises the full pipeline: TypeLL core -> VCL bridge -> level checking.
 // Verifies that:
-// - A VQL query type-checks through all 10 levels
+// - A VCL query type-checks through all 10 levels
 // - Higher levels require lower levels to pass first
-// - The TypeChecker, VQL bridge, and safety level determination work together
-// - Full round-trip: VQL query -> UnifiedType -> TypeChecker -> CheckResult
+// - The TypeChecker, VCL bridge, and safety level determination work together
+// - Full round-trip: VCL query -> UnifiedType -> TypeChecker -> CheckResult
 
 use typell_core::check::TypeChecker;
 use typell_core::effects::check_effects;
@@ -23,7 +23,7 @@ use typell_core::types::{
 use typell_core::unify::Unifier;
 
 use typell_vql::bridge::{
-    determine_safety_level, session_protocol_to_session, vql_to_typell, vql_to_unified,
+    determine_safety_level, session_protocol_to_session, vcl_to_typell, vcl_to_unified,
     VqlEffectLabel, VqlExtensions, VqlModality, VqlQueryType, VqlSessionProtocol,
     VqlTransactionState,
 };
@@ -34,15 +34,15 @@ use typell_vql::rules::{
 };
 
 // ============================================================================
-// Full pipeline: VQL -> TypeLL core -> level checking
+// Full pipeline: VCL -> TypeLL core -> level checking
 // ============================================================================
 
-/// Build a fully-annotated VQL query that passes all 10 levels,
+/// Build a fully-annotated VCL query that passes all 10 levels,
 /// then verify it through the full TypeLL pipeline.
 #[test]
 fn test_full_pipeline_level_10_query() {
-    // Step 1: Construct a VQL query with all extensions.
-    let vql = VqlQueryType {
+    // Step 1: Construct a VCL query with all extensions.
+    let vcl = VqlQueryType {
         modalities: vec![VqlModality::Graph, VqlModality::Vector],
         result_fields: vec!["id".to_string(), "name".to_string(), "embedding".to_string()],
         extensions: VqlExtensions {
@@ -56,13 +56,13 @@ fn test_full_pipeline_level_10_query() {
     };
 
     // Step 2: Check safety level.
-    let report = determine_safety_level(&vql);
+    let report = determine_safety_level(&vcl);
     assert_eq!(report.max_level, SafetyLevel::Linearity);
     assert_eq!(report.query_path, QueryPath::Ut);
     assert!(report.checks.iter().all(|c| c.passed));
 
     // Step 3: Convert to TypeLL UnifiedType.
-    let unified = vql_to_unified(&vql);
+    let unified = vcl_to_unified(&vcl);
     assert_eq!(unified.usage, UsageQuantifier::Bounded(1));
     assert_eq!(unified.discipline, TypeDiscipline::Linear);
     assert_eq!(unified.effects.len(), 2);
@@ -94,18 +94,18 @@ fn test_full_pipeline_level_10_query() {
 /// Verify that a minimal query (level 1 only) goes through the pipeline.
 #[test]
 fn test_full_pipeline_level_1_query() {
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![],
         result_fields: vec![],
         extensions: VqlExtensions::default(),
     };
 
-    let report = determine_safety_level(&vql);
+    let report = determine_safety_level(&vcl);
     assert_eq!(report.max_level, SafetyLevel::ParseTime);
     assert_eq!(report.query_path, QueryPath::Slipstream);
 
-    // Still a valid VQL type to TypeLL.
-    let unified = vql_to_unified(&vql);
+    // Still a valid VCL type to TypeLL.
+    let unified = vcl_to_unified(&vcl);
     assert_eq!(unified.usage, UsageQuantifier::Omega);
     assert_eq!(unified.discipline, TypeDiscipline::Unrestricted);
 }
@@ -202,10 +202,10 @@ fn test_incremental_level_progression() {
 }
 
 // ============================================================================
-// VQL session protocol through TypeLL session type system
+// VCL session protocol through TypeLL session type system
 // ============================================================================
 
-/// Verify that a VQL session protocol converts to a well-formed TypeLL
+/// Verify that a VCL session protocol converts to a well-formed TypeLL
 /// session type and that its dual is also well-formed.
 #[test]
 fn test_vql_session_through_typell_session_system() {
@@ -243,14 +243,14 @@ fn test_vql_session_through_typell_session_system() {
 }
 
 // ============================================================================
-// VQL effects through TypeLL effect system
+// VCL effects through TypeLL effect system
 // ============================================================================
 
-/// Verify that VQL effects mapped through the bridge are compatible
+/// Verify that VCL effects mapped through the bridge are compatible
 /// with TypeLL's effect checking system.
 #[test]
 fn test_vql_effects_through_typell_effect_checking() {
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![VqlModality::All],
         result_fields: vec![],
         extensions: VqlExtensions {
@@ -263,7 +263,7 @@ fn test_vql_effects_through_typell_effect_checking() {
         },
     };
 
-    let unified = vql_to_unified(&vql);
+    let unified = vcl_to_unified(&vcl);
 
     // The unified type should have 3 effects.
     assert_eq!(unified.effects.len(), 3);
@@ -280,14 +280,14 @@ fn test_vql_effects_through_typell_effect_checking() {
 }
 
 // ============================================================================
-// VQL linearity through TypeLL usage tracking
+// VCL linearity through TypeLL usage tracking
 // ============================================================================
 
-/// Verify that VQL CONSUME AFTER maps to TypeLL linear usage tracking
+/// Verify that VCL CONSUME AFTER maps to TypeLL linear usage tracking
 /// and that violations are correctly detected.
 #[test]
 fn test_vql_linearity_through_typell_usage_tracker() {
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![VqlModality::Graph],
         result_fields: vec![],
         extensions: VqlExtensions {
@@ -296,7 +296,7 @@ fn test_vql_linearity_through_typell_usage_tracker() {
         },
     };
 
-    let unified = vql_to_unified(&vql);
+    let unified = vcl_to_unified(&vcl);
     assert_eq!(unified.usage, UsageQuantifier::Bounded(2));
 
     // Simulate usage tracking.
@@ -313,14 +313,14 @@ fn test_vql_linearity_through_typell_usage_tracker() {
 }
 
 // ============================================================================
-// VQL proof obligations through TypeLL proof system
+// VCL proof obligations through TypeLL proof system
 // ============================================================================
 
-/// Verify that VQL PROOF ATTACHED maps to refinements that can be
+/// Verify that VCL PROOF ATTACHED maps to refinements that can be
 /// processed by TypeLL's obligation system.
 #[test]
 fn test_vql_proof_through_typell_obligations() {
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![VqlModality::Provenance],
         result_fields: vec!["audit_log".to_string()],
         extensions: VqlExtensions {
@@ -329,7 +329,7 @@ fn test_vql_proof_through_typell_obligations() {
         },
     };
 
-    let unified = vql_to_unified(&vql);
+    let unified = vcl_to_unified(&vcl);
     assert_eq!(unified.refinements.len(), 1);
 
     // Feed the refinement into the obligation collector.
@@ -345,10 +345,10 @@ fn test_vql_proof_through_typell_obligations() {
 }
 
 // ============================================================================
-// VQL typing rules integrated with bridge
+// VCL typing rules integrated with bridge
 // ============================================================================
 
-/// Verify that VQL typing rules (session/effect compatibility) work
+/// Verify that VCL typing rules (session/effect compatibility) work
 /// correctly when combined with bridge conversions.
 #[test]
 fn test_vql_readonly_session_forbids_write_in_bridge() {
@@ -406,24 +406,24 @@ fn test_transaction_state_machine_full_lifecycle() {
 // Cross-crate type unification
 // ============================================================================
 
-/// Verify that a VQL query result type can be unified with a TypeLL
+/// Verify that a VCL query result type can be unified with a TypeLL
 /// type variable through the unifier.
 #[test]
 fn test_vql_query_result_unifies_with_type_var() {
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![VqlModality::Semantic],
         result_fields: vec!["embedding".to_string()],
         extensions: VqlExtensions::default(),
     };
 
-    let vql_type = vql_to_typell(&vql);
+    let vcl_type = vcl_to_typell(&vcl);
     let mut unifier = Unifier::new();
     let var = Type::Var(TypeVar(0));
 
-    // Unify the VQL type with a type variable.
-    assert!(unifier.unify(&var, &vql_type, Span::synthetic()).is_ok());
+    // Unify the VCL type with a type variable.
+    assert!(unifier.unify(&var, &vcl_type, Span::synthetic()).is_ok());
 
-    // The type variable should now resolve to the VQL QueryResult type.
+    // The type variable should now resolve to the VCL QueryResult type.
     let resolved = unifier.substitution.apply(&var);
     match resolved {
         Type::Named { name, .. } => assert_eq!(name, "QueryResult"),
@@ -432,10 +432,10 @@ fn test_vql_query_result_unifies_with_type_var() {
 }
 
 // ============================================================================
-// Dimensional analysis with VQL modalities
+// Dimensional analysis with VCL modalities
 // ============================================================================
 
-/// Verify that resource types produced by VQL-adjacent computations
+/// Verify that resource types produced by VCL-adjacent computations
 /// can go through dimensional analysis in TypeLL.
 #[test]
 fn test_dimensional_analysis_with_query_timing() {
@@ -517,7 +517,7 @@ fn test_checker_polymorphic_identity() {
 #[test]
 fn test_safety_level_monotonicity() {
     // Build a query that achieves level 10.
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![VqlModality::Graph],
         result_fields: vec!["x".to_string()],
         extensions: VqlExtensions {
@@ -530,7 +530,7 @@ fn test_safety_level_monotonicity() {
         },
     };
 
-    let report = determine_safety_level(&vql);
+    let report = determine_safety_level(&vcl);
 
     // Verify monotonicity: once a level fails, all subsequent must fail.
     let mut first_failure: Option<usize> = None;
@@ -559,12 +559,12 @@ fn test_safety_level_monotonicity() {
 }
 
 // ============================================================================
-// Complete VQL query type JSON serialisation round-trip
+// Complete VCL query type JSON serialisation round-trip
 // ============================================================================
 
 #[test]
 fn test_vql_query_type_full_serialise_round_trip() {
-    let vql = VqlQueryType {
+    let vcl = VqlQueryType {
         modalities: vec![VqlModality::Graph, VqlModality::Semantic, VqlModality::Temporal],
         result_fields: vec!["id".to_string(), "name".to_string()],
         extensions: VqlExtensions {
@@ -581,8 +581,8 @@ fn test_vql_query_type_full_serialise_round_trip() {
         },
     };
 
-    let json = serde_json::to_string_pretty(&vql).expect("serialise VQL query");
-    let recovered: VqlQueryType = serde_json::from_str(&json).expect("deserialise VQL query");
+    let json = serde_json::to_string_pretty(&vcl).expect("serialise VCL query");
+    let recovered: VqlQueryType = serde_json::from_str(&json).expect("deserialise VCL query");
 
     assert_eq!(recovered.modalities.len(), 3);
     assert_eq!(recovered.result_fields.len(), 2);

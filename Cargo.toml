@@ -16,7 +16,7 @@ members = [
     "crates/typell-jtv",
     "crates/typell-phronesis",
     "crates/typell-errorlang",
-    "crates/typell-vql",
+    "crates/typell-vcl",
     "crates/typell-server",
 ]
 

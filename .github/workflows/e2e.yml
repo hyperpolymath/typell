@@ -4,7 +4,7 @@
 # TypeLL — E2E + Aspect + Bench
 #
 # Tests the full type-check→compile→run pipeline, integration tests,
-# VQL bridge, and safety aspects.
+# VCL bridge, and safety aspects.
 
 name: E2E + Aspect + Bench
 
@@ -52,8 +52,8 @@ jobs:
       - name: Run integration tests specifically
         run: cargo test --test integration_test -- --nocapture
 
-      - name: Run VQL bridge tests
-        run: cargo test -p typell-vql --test vql_bridge_tests -- --nocapture 2>/dev/null || echo "VQL bridge tests skipped"
+      - name: Run VCL bridge tests
+        run: cargo test -p typell-vcl --test vcl_bridge_tests -- --nocapture 2>/dev/null || echo "VCL bridge tests skipped"
 
   aspect-safety:
     name: Aspect — Safety Invariants

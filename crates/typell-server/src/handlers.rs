@@ -18,7 +18,7 @@
 //! | `/check-effects`           | POST   | Effect tracking and purity analysis       |
 //! | `/check-dimensional`       | POST   | Dimensional analysis (Eclexia)            |
 //! | `/generate-obligations`    | POST   | Proof obligation extraction               |
-//! | `/vql-ut/check`            | POST   | VQL-UT 10-level type safety checking      |
+//! | `/vcl-total/check`            | POST   | VCL-total 10-level type safety checking      |
 
 use axum::extract::Json;
 use axum::response::IntoResponse;
@@ -30,7 +30,7 @@ use typell_core::types::{
 };
 use typell_vql::bridge::{
     VqlEffectLabel, VqlExtensions, VqlModality, VqlQueryType, VqlSessionProtocol,
-    VqlTransactionState, determine_safety_level, vql_to_typell, vql_to_unified,
+    VqlTransactionState, determine_safety_level, vcl_to_typell, vcl_to_unified,
 };
 use typell_vql::levels::SafetyReport;
 use typell_vql::rules;
@@ -42,14 +42,14 @@ use typell_vql::rules;
 /// Parsed context from PanLL's TypeLLService requests.
 ///
 /// PanLL sends context as a JSON string like:
-/// `{"language":"vql","dialect":"vql-ut","features":["dependent","linear"]}`
+/// `{"language":"vcl","dialect":"vcl-total","features":["dependent","linear"]}`
 #[derive(Debug, Clone, Default, Deserialize)]
 struct CheckContext {
-    /// Target language: "vql", "schema", "my-lang", "idris2", "constraint",
+    /// Target language: "vcl", "schema", "my-lang", "idris2", "constraint",
     /// "config", "policy", "game-data", "metadata", "proof", "code".
     #[serde(default)]
     language: String,
-    /// Dialect within the language (e.g., "vql-ut", "solo", "duet").
+    /// Dialect within the language (e.g., "vcl-total", "solo", "duet").
     #[serde(default)]
     dialect: String,
     /// Required type features: "dependent", "linear", "effect", "session",
@@ -112,10 +112,10 @@ pub async fn health() -> impl IntoResponse {
             "session".to_string(),
             "qtt".to_string(),
             "proof-obligations".to_string(),
-            "vql-ut".to_string(),
+            "vcl-total".to_string(),
         ],
         languages: vec![
-            "vql".to_string(),
+            "vcl".to_string(),
             "schema".to_string(),
             "my-lang".to_string(),
             "idris2".to_string(),
@@ -159,8 +159,8 @@ pub async fn check(Json(req): Json<CheckRequest>) -> impl IntoResponse {
     }
 
     let result = match ctx.language.as_str() {
-        // VQL/VQL-UT: route through the typell-vql bridge for 10-level checking
-        "vql" => check_vql_expression(&req.expression, &ctx, &mut checker),
+        // VCL/VCL-total: route through the typell-vcl bridge for 10-level checking
+        "vcl" => check_vql_expression(&req.expression, &ctx, &mut checker),
 
         // Proof obligation generation mode
         _ if ctx.mode == "obligation-generation" => {
@@ -206,9 +206,9 @@ pub struct CheckRequest {
 // Language-Specific Check Implementations
 // ============================================================================
 
-/// VQL query type checking via the typell-vql bridge.
+/// VCL query type checking via the typell-vcl bridge.
 ///
-/// Parses the expression as a VQL query description, converts to TypeLL types,
+/// Parses the expression as a VCL query description, converts to TypeLL types,
 /// runs the 10-level safety analysis, and returns a CheckResult with level info.
 fn check_vql_expression(
     expression: &str,
@@ -217,11 +217,11 @@ fn check_vql_expression(
 ) -> CheckResult {
     register_builtins(checker);
 
-    // Try to parse the expression as a VQL query type JSON
-    let vql: VqlQueryType = match serde_json::from_str(expression) {
+    // Try to parse the expression as a VCL query type JSON
+    let vcl: VqlQueryType = match serde_json::from_str(expression) {
         Ok(v) => v,
         Err(_) => {
-            // If not JSON, treat as a VQL query string and build a minimal type
+            // If not JSON, treat as a VCL query string and build a minimal type
             let modalities = vec![VqlModality::All];
             let result_fields = if expression.contains("SELECT") || expression.contains("select") {
                 vec!["result".to_string()]
@@ -240,42 +240,42 @@ fn check_vql_expression(
     };
 
     // Run the 10-level safety analysis
-    let safety_report = determine_safety_level(&vql);
+    let safety_report = determine_safety_level(&vcl);
 
-    // Run VQL-specific validation rules
+    // Run VCL-specific validation rules
     let mut rule_errors: Vec<String> = Vec::new();
-    if let Some(n) = vql.extensions.consume_after {
+    if let Some(n) = vcl.extensions.consume_after {
         if let Err(e) = rules::check_consume_after(n) {
             rule_errors.push(e);
         }
     }
-    if let Some(n) = vql.extensions.usage_limit {
+    if let Some(n) = vcl.extensions.usage_limit {
         if let Err(e) = rules::check_usage_limit(n) {
             rule_errors.push(e);
         }
     }
-    if let (Some(proto), Some(effects)) = (&vql.extensions.session_protocol, &vql.extensions.effects) {
+    if let (Some(proto), Some(effects)) = (&vcl.extensions.session_protocol, &vcl.extensions.effects) {
         if let Err(e) = rules::check_session_effects_compatible(proto, effects) {
             rule_errors.push(e);
         }
     }
 
     // Convert to TypeLL unified type
-    let unified = vql_to_unified(&vql);
-    let base_type = vql_to_typell(&vql);
+    let unified = vcl_to_unified(&vcl);
+    let base_type = vcl_to_typell(&vcl);
 
-    // Build the CheckResult with VQL-UT-specific annotations
+    // Build the CheckResult with VCL-total-specific annotations
     let mut result = checker.finish(&base_type);
     result.valid = rule_errors.is_empty();
     result.type_signature = format!("{}", base_type);
     result.explanation = format!(
-        "VQL-UT Level {}/10 ({}) — query path: {}",
+        "VCL-total Level {}/10 ({}) — query path: {}",
         safety_report.max_level.as_u8(),
         safety_report.max_level.name(),
         safety_report.query_path.name(),
     );
 
-    // Add effects from VQL extensions
+    // Add effects from VCL extensions
     result.effects = unified
         .effects
         .iter()
@@ -299,7 +299,7 @@ fn check_vql_expression(
 
     // Feature codes
     result.features = vec![
-        format!("vql-ut-l{}", safety_report.max_level.as_u8()),
+        format!("vcl-total-l{}", safety_report.max_level.as_u8()),
         format!("path:{}", safety_report.query_path.name()),
     ];
     if unified.discipline == TypeDiscipline::Linear {
@@ -314,12 +314,12 @@ fn check_vql_expression(
 
     result.usage = unified.usage.to_string();
     result.discipline = unified.discipline.to_string();
-    result.inference_source = "vql-ut-bridge".to_string();
+    result.inference_source = "vcl-total-bridge".to_string();
 
     result
 }
 
-/// Extract VQL-UT extension annotations from query text.
+/// Extract VCL-total extension annotations from query text.
 fn parse_vql_extensions_from_text(text: &str) -> VqlExtensions {
     let upper = text.to_uppercase();
     let mut ext = VqlExtensions::default();
@@ -766,9 +766,9 @@ pub async fn list_signatures() -> impl IntoResponse {
             tier: "Core".to_string(),
         },
         SignatureEntry {
-            name: "vql_check".to_string(),
+            name: "vcl_check".to_string(),
             signature: "VqlQuery -> SafetyReport".to_string(),
-            module_: "VQL.UT".to_string(),
+            module_: "VCL.UT".to_string(),
             tier: "Database".to_string(),
         },
         SignatureEntry {
@@ -1097,15 +1097,15 @@ struct ObligationsResponse {
 }
 
 // ============================================================================
-// VQL-UT Dedicated Endpoint
+// VCL-total Dedicated Endpoint
 // ============================================================================
 
-/// POST /vql-ut/check — dedicated VQL-UT 10-level type safety analysis.
+/// POST /vcl-total/check — dedicated VCL-total 10-level type safety analysis.
 ///
-/// Accepts either a VqlQueryType JSON or a raw VQL query string, runs the
+/// Accepts either a VqlQueryType JSON or a raw VCL query string, runs the
 /// full 10-level analysis, and returns the SafetyReport.
-pub async fn vql_ut_check(Json(req): Json<VqlUtCheckRequest>) -> impl IntoResponse {
-    let vql: VqlQueryType = match serde_json::from_str(&req.query) {
+pub async fn vcl_ut_check(Json(req): Json<VclTotalCheckRequest>) -> impl IntoResponse {
+    let vcl: VqlQueryType = match serde_json::from_str(&req.query) {
         Ok(v) => v,
         Err(_) => {
             // Parse as raw query text
@@ -1135,22 +1135,22 @@ pub async fn vql_ut_check(Json(req): Json<VqlUtCheckRequest>) -> impl IntoRespon
         }
     };
 
-    let safety_report = determine_safety_level(&vql);
-    let unified = vql_to_unified(&vql);
+    let safety_report = determine_safety_level(&vcl);
+    let unified = vcl_to_unified(&vcl);
 
     // Run validation rules
     let mut rule_errors: Vec<String> = Vec::new();
-    if let Some(n) = vql.extensions.consume_after {
+    if let Some(n) = vcl.extensions.consume_after {
         if let Err(e) = rules::check_consume_after(n) {
             rule_errors.push(e);
         }
     }
-    if let Some(n) = vql.extensions.usage_limit {
+    if let Some(n) = vcl.extensions.usage_limit {
         if let Err(e) = rules::check_usage_limit(n) {
             rule_errors.push(e);
         }
     }
-    if let (Some(proto), Some(effects)) = (&vql.extensions.session_protocol, &vql.extensions.effects) {
+    if let (Some(proto), Some(effects)) = (&vcl.extensions.session_protocol, &vcl.extensions.effects) {
         if let Err(e) = rules::check_session_effects_compatible(proto, effects) {
             rule_errors.push(e);
         }
@@ -1158,9 +1158,9 @@ pub async fn vql_ut_check(Json(req): Json<VqlUtCheckRequest>) -> impl IntoRespon
 
     let valid = rule_errors.is_empty();
 
-    Json(VqlUtCheckResponse {
+    Json(VclTotalCheckResponse {
         safety_report,
-        unified_type: format!("{}", vql_to_typell(&vql)),
+        unified_type: format!("{}", vcl_to_typell(&vcl)),
         usage: unified.usage.to_string(),
         discipline: unified.discipline.to_string(),
         effects: unified.effects.iter().map(|e| e.to_string()).collect(),
@@ -1171,8 +1171,8 @@ pub async fn vql_ut_check(Json(req): Json<VqlUtCheckRequest>) -> impl IntoRespon
 }
 
 #[derive(Deserialize)]
-pub struct VqlUtCheckRequest {
-    /// VQL query string or JSON-encoded VqlQueryType.
+pub struct VclTotalCheckRequest {
+    /// VCL query string or JSON-encoded VqlQueryType.
     pub query: String,
     /// Optional: explicit modality list (if not in JSON form).
     #[serde(default)]
@@ -1183,7 +1183,7 @@ pub struct VqlUtCheckRequest {
 }
 
 #[derive(Serialize)]
-struct VqlUtCheckResponse {
+struct VclTotalCheckResponse {
     safety_report: SafetyReport,
     unified_type: String,
     usage: String,
@@ -1245,9 +1245,9 @@ fn register_builtins(checker: &mut TypeChecker) {
         }),
     );
 
-    // vql_check: a -> QueryResult (VQL-UT bridge function)
+    // vcl_check: a -> QueryResult (VCL-total bridge function)
     checker.register_binding(
-        "vql_check",
+        "vcl_check",
         UnifiedType::simple(Type::Function {
             params: vec![Type::Var(typell_core::TypeVar(300))],
             ret: Box::new(Type::Named {

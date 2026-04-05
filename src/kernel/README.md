@@ -12,7 +12,7 @@ kernel/
 ├── checker/      # Bidirectional type checker
 │   │             Implements: dependent, linear, affine, session, QTT,
 │   │             effect, and modal type checking.
-│   │             Port of VQL-dt's VQLBidir.res logic, extended.
+│   │             Port of VCL-dt's VQLBidir.res logic, extended.
 │   └── ...
 ├── proof/        # Proof engine
 │   │             Automated proof generation for simple cases.

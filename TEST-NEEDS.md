@@ -6,7 +6,7 @@
 
 | Category | Count | Details |
 |----------|-------|---------|
-| **Source modules** | 53 | Rust: typell-core (12: types, error, unify, infer, check, linear, effects, qtt, dimensional, session, proof, lib), typell-eclexia (3), typell-affinescript (3), typell-ephapax (3), typell-wokelang (3), typell-tangle (3), typell-betlang (3), typell-mylang (3), typell-oblibeny (3), typell-jtv (3), typell-phronesis (3), typell-errorlang (3), typell-vql (4) + 3 Idris2 ABI |
+| **Source modules** | 53 | Rust: typell-core (12: types, error, unify, infer, check, linear, effects, qtt, dimensional, session, proof, lib), typell-eclexia (3), typell-affinescript (3), typell-ephapax (3), typell-wokelang (3), typell-tangle (3), typell-betlang (3), typell-mylang (3), typell-oblibeny (3), typell-jtv (3), typell-phronesis (3), typell-errorlang (3), typell-vcl (4) + 3 Idris2 ABI |
 | **Unit tests (inline)** | 106 | In typell-core inline module tests |
 | **Integration tests** | 95 | core_comprehensive_tests.rs |
 | **E2E tests** | 15 | e2e_test.rs — full pipeline, all type disciplines |
@@ -45,7 +45,7 @@
 ## FLAGGED ISSUES
 - **398 inline tests across 13 crates is respectable** -- best inline coverage among non-Julia repos
 - **benches/.gitkeep = phantom benchmarks** -- a type checker with no performance measurements
-- **13 language backends (eclexia through vql) each have only ~10 inline tests** -- thin coverage per backend
+- **13 language backends (eclexia through vcl) each have only ~10 inline tests** -- thin coverage per backend
 - **0 E2E for a 10-level type system** -- can't verify the type system actually works on real programs
 - **core_comprehensive_tests.rs (95 tests) is solid** for the kernel
 

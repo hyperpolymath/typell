@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: PMPL-1.0-or-later
 // SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell
 
-//! TypeLL-VQL Bridge — maps VQL-UT's 10 type safety levels into TypeLL.
+//! TypeLL-VCL Bridge — maps VCL-total's 10 type safety levels into TypeLL.
 //!
-//! VQL-UT (Ultimate Type-Safe) supersedes VQL-DT by extending dependent
+//! VCL-total (Ultimate Type-Safe) supersedes VCL-DT by extending dependent
 //! type checking to a full 10-level type safety hierarchy:
 //!
 //! ## Established Levels (1–6)
@@ -26,9 +26,9 @@
 //! | 9     | Temporal safety             | Session types, state machines     |
 //! | 10    | Linearity safety            | QTT bounded usage, linear types   |
 //!
-//! ## VQL-DT Legacy (6 mechanisms)
+//! ## VCL-DT Legacy (6 mechanisms)
 //!
-//! The original VQL-dt++ extensions map to levels 7–10:
+//! The original VCL-dt++ extensions map to levels 7–10:
 //! 1. **Linear types** (`CONSUME AFTER N USE`) → Level 10
 //! 2. **Session types** (`WITH SESSION`) → Level 9
 //! 3. **Effect systems** (`EFFECTS { Read, Write }`) → Level 8

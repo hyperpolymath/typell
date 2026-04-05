@@ -16,7 +16,7 @@ substrate that makes PanLL's panes intelligent.
 PanLL (the eNASAID — Environment for NeSy-Agentic Integrated Development) needs
 a type-theory backbone to deliver on its promise. The nextgen-databases trilogy
 (VeriSimDB, LithoGlyph, QuandleDB) each have or plan dependently typed query
-languages (VQL-dt, GQL-dt, KQL-dt). These need to be extended to the ultimate
+languages (VCL-dt, GQL-dt, KQL-dt). These need to be extended to the ultimate
 level of type-system strictness and connected to PanLL's interface.
 
 The risk: building this as a separate IDE creates two competing tools that both
@@ -64,7 +64,7 @@ Typell is to PanLL what LLVM is to Clang. One system, two separable layers:
 │  └──────────────────────────────────────────┘   │
 │  ┌──────────────────────────────────────────┐   │
 │  │  Language Backends                        │   │
-│  │  ├─ VQL-dt++ (VeriSimDB)                  │   │
+│  │  ├─ VCL-dt++ (VeriSimDB)                  │   │
 │  │  ├─ GQL-dt++ (LithoGlyph)                │   │
 │  │  └─ KQL-dt++ (QuandleDB)                 │   │
 │  └──────────────────────────────────────────┘   │
@@ -98,17 +98,17 @@ but with tooling that makes it usable.
 
 | System | Purpose | Source |
 |--------|---------|--------|
-| **Dependent Types** | Types that depend on values. `Vector 5 Int` = exactly 5 integers. Schema-aware queries, precise result specs, proof obligations. | Existing in VQL-dt (Pi, Sigma types), GQL-dt (Lean 4 refinement types) |
+| **Dependent Types** | Types that depend on values. `Vector 5 Int` = exactly 5 integers. Schema-aware queries, precise result specs, proof obligations. | Existing in VCL-dt (Pi, Sigma types), GQL-dt (Lean 4 refinement types) |
 | **Linear Types** | Resources used exactly once. No duplicate reads, no data leaks, transaction safety. `SELECT LINEAR GRAPH.* ... CONSUME AFTER 1 USE` | New for all query languages |
 | **Session Types** | Protocol safety. Connections opened/closed correctly, transactions atomic. `WITH SESSION (OPEN, QUERY, CLOSE)` | New for all query languages |
-| **Proof-Carrying Code** | Cryptographic proof certificates attached to queries. Zero-trust verification. `PROOF ATTACHED { theorem, proof: "sha256:..." }` | Partial in VQL-dt (proof obligations), full in GQL-dt (RATIONALE clause) |
+| **Proof-Carrying Code** | Cryptographic proof certificates attached to queries. Zero-trust verification. `PROOF ATTACHED { theorem, proof: "sha256:..." }` | Partial in VCL-dt (proof obligations), full in GQL-dt (RATIONALE clause) |
 
 ### Tier 2: Advanced (Should Have)
 
 | System | Purpose | Source |
 |--------|---------|--------|
 | **Quantitative Type Theory** | Track resource usage quantities. Rate limiting, cost analysis. `USAGE LIMIT 3` | Idris2 already has QTT natively |
-| **Effect Systems** | Explicit side effects. `EFFECTS { read: [GRAPH, DOCUMENT], write: [], memory: <50MB }` | VQL-dt has partial effect tracking |
+| **Effect Systems** | Explicit side effects. `EFFECTS { read: [GRAPH, DOCUMENT], write: [], memory: <50MB }` | VCL-dt has partial effect tracking |
 | **Modal Types** | Contextual access. Data only available within specific scopes. `IN TRANSACTION tx1` | New |
 | **Affine Types** | Resources used at most once (relaxation of linear). Graceful cleanup. | Natural extension of linear types |
 
@@ -162,7 +162,7 @@ Operator writes in Pane-L:
     EFFECTS { read: [GRAPH, DOCUMENT], memory: <50MB }
 
 PanLL sends to Typell via protocol:
-  typell.check(query, "vql-dt++")
+  typell.check(query, "vcl-dt++")
 
 Typell responds:
   {
@@ -184,9 +184,9 @@ PanLL renders in:
 
 ## Language Backend Strategy
 
-### VQL-dt++ (VeriSimDB)
+### VCL-dt++ (VeriSimDB)
 
-**Source:** `nextgen-databases/verisimdb/src/vql/` — ReScript implementation
+**Source:** `nextgen-databases/verisim/src/vcl/` — ReScript implementation
 **Status:** ~70% complete (parser, type checker, bidirectional inference, proof obligations)
 **Strategy:** Port logic from ReScript to Rust kernel. Extend with linear/session/QTT/effects during port.
 
@@ -299,9 +299,9 @@ Execute (database) or Display (PanLL/editor)
 - **Error explanations:** User-friendly messages ("This variable is linear and cannot be copied")
 - **Progressive disclosure:** Start simple, reveal complexity as needed
 
-## VQL-dt vs VQL-dt++ Feature Comparison
+## VCL-dt vs VCL-dt++ Feature Comparison
 
-| Feature | VQL-dt (current) | VQL-dt++ (Typell) | Kernel Component |
+| Feature | VCL-dt (current) | VCL-dt++ (Typell) | Kernel Component |
 |---------|-----------------|-------------------|------------------|
 | Dependent types (Pi, Sigma) | Yes | Yes | Bidirectional type checker |
 | Proof obligations (EXISTENCE, etc.) | Yes | Yes | Proof engine |
@@ -313,8 +313,8 @@ Execute (database) or Display (PanLL/editor)
 | **Proof-carrying code** | Partial (pre-conditions) | `PROOF ATTACHED theorem` | Cryptographic PCC |
 | **QTT** | No | `USAGE LIMIT n` | Quantitative type tracker |
 
-Grammar delta: `nextgen-databases/typeql-experimental/docs/vql-dtpp-grammar.ebnf` (199 lines)
-Normative spec: `nextgen-databases/verisimdb/docs/VQL-SPEC.adoc` Appendix E
+Grammar delta: `nextgen-databases/typeql-experimental/docs/vcl-dtpp-grammar.ebnf` (199 lines)
+Normative spec: `nextgen-databases/verisim/docs/VCL-SPEC.adoc` Appendix E
 
 ## Individual Feature Syntax Examples
 
@@ -435,7 +435,7 @@ Different from `LIMIT` (which caps result rows).
 **Idris2 ABI:** `BoundedResource : (n : Nat) -> Type`. Generalises linear types
 from exact-1 to at-most-n.
 
-## Example: A VQL-dt++ Query Through Typell (All Six Combined)
+## Example: A VCL-dt++ Query Through Typell (All Six Combined)
 
 ```sql
 -- Maximal strictness: linear, session-typed, effect-annotated, proof-carrying
@@ -506,21 +506,21 @@ Typell's response:
 1. **Phase 0 (NOW):** Capture the vision. This document. Repo scaffolding.
 2. **Phase 1:** Formal type system spec in Idris2 (dependent + linear + QTT)
 3. **Phase 2:** Verification Protocol specification (JSON-RPC schema)
-4. **Phase 3:** Rust kernel — bidirectional type checker (port VQL-dt logic)
+4. **Phase 3:** Rust kernel — bidirectional type checker (port VCL-dt logic)
 5. **Phase 4:** Rust kernel — proof engine
 6. **Phase 5:** PanLL integration (Pane-N + Pane-L)
-7. **Phase 6-8:** Language backends (VQL-dt++, GQL-dt++, KQL-dt++)
+7. **Phase 6-8:** Language backends (VCL-dt++, GQL-dt++, KQL-dt++)
 8. **Phase 9-10:** VS Code extension, CLI, CI/CD plugins
 
 Each phase delivers independent value. No big bang.
 
 ## Open Questions
 
-1. Should the VQL-dt ReScript code be ported to Rust, or should Typell
+1. Should the VCL-dt ReScript code be ported to Rust, or should Typell
    call VeriSimDB's existing type checker via the protocol?
 2. How tightly should Typell couple with Echidna for proof dispatch?
 3. ~~What is the right syntax for linear/session annotations in each query language?~~
-   **RESOLVED:** VQL-dt++ grammar delta specifies all six clauses (`vql-dtpp-grammar.ebnf`).
+   **RESOLVED:** VCL-dt++ grammar delta specifies all six clauses (`vcl-dtpp-grammar.ebnf`).
    GQL-dt++ and KQL-dt++ syntax TBD but will follow the same clause pattern.
 4. Should Typell define a universal query AST that all backends parse into,
    or should each backend maintain its own AST?
