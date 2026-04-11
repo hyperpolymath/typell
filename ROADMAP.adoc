@@ -112,8 +112,11 @@ new levels are added as the type theory demands.  L1-L10 is a starting point, no
 === Consumers
 
 * **VCL-total** — Type-safe query language (supersedes VCL-DT); levels 7-10 map VCL-DT legacy extensions
-* **007** — Agent meta-language type system (tropical types, Five Facets)
-* **Kategoria** — Category theory verification; Route alpha achieved L9 (session types via Brady indexed monad)
+* **007** — Agent meta-language type system (tropical types, Five Facets);
+  Isabelle foundation complete in `tropical-resource-typing` (2026-04-11):
+  star equation, Floyd-Warshall, least prefixpoint, CNO — all proved, zero sorry.
+* **Kategoria** — Category theory verification; Route alpha achieved L9 (session types via Brady indexed monad);
+  `research/tropical/` research prototype added referencing `tropical-resource-typing` proofs.
 * **PanLL** — Cross-panel type intelligence (TypeLLService + TypeLLEngine in src/core/)
 * **typed-wasm** — TypeLL progressive type safety applied to WASM memory (current application: L1-L10), multi-module convergence infrastructure for AffineScript + Ephapax
 * **nextgen-languages** — 14 language frontends via bridge crates
@@ -171,6 +174,8 @@ new levels are added as the type theory demands.  L1-L10 is a starting point, no
 === v0.7.0 — 007 Integration (PLANNED)
 
 * [ ] 007 agent type checking (tropical types, Five Facets)
+      — math foundation proven in Isabelle (`tropical-resource-typing`);
+        Idris2 prototype in `katagoria/research/tropical/TropicalKleene.idr`
 * [ ] Session type verification for agent choreographies
 * [ ] Effect tracking for agent side effects
 * [ ] Linear resource tracking for agent capabilities
