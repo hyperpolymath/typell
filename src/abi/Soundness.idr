@@ -18,9 +18,10 @@
 ||| Together these establish type safety: well-typed programs do not get stuck.
 |||
 ||| These proofs model the core calculus underlying typell-core's check.rs,
-||| infer.rs, and unify.rs. The full TypeLL type system (10 levels, QTT,
-||| sessions, effects, dimensions) extends this core; level-specific proofs
-||| are in LevelMonotonicity.idr.
+||| infer.rs, and unify.rs. The full TypeLL type system (initial L1-L10
+||| levels; open-ended progressive — new levels added as theory demands;
+||| QTT, sessions, effects, dimensions) extends this core; level-specific
+||| proofs are in LevelMonotonicity.idr.
 |||
 ||| @see check.rs  — TypeChecker orchestration
 ||| @see infer.rs  — Bidirectional type inference

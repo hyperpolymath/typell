@@ -15,7 +15,7 @@ abi/
 ├── Foreign.idr             # FFI declarations for the Zig layer (libtypell)
 ├── Soundness.idr           # Progress + Preservation proofs for core calculus
 ├── InferenceSoundness.idr  # Unification + type inference soundness proofs
-└── LevelMonotonicity.idr   # 10-level hierarchy monotonicity proofs (L1-L10)
+└── LevelMonotonicity.idr   # L1-L10 hierarchy monotonicity proofs (initial checked set; open-ended above)
 ```
 
 ## Soundness Proofs
@@ -33,13 +33,14 @@ Models unification (`unify.rs`) and inference (`infer.rs`).
 - **Substitution idempotence**: MGU applied twice equals MGU applied once
 - **Arrow decomposition**: unifying function types decomposes to component unification
 
-### LevelMonotonicity.idr — 10-Level Hierarchy
-Models the L1-L10 type safety hierarchy from `ROADMAP.adoc`.
+### LevelMonotonicity.idr — Progressive Level Hierarchy (initial L1-L10)
+Models the L1-L10 type safety hierarchy from `ROADMAP.adoc`. TypeLL is open-ended;
+L1-L10 is the current checked set, not a fixed ceiling.
 - **Level total order**: any two levels are comparable
 - **Strict increase**: each level strictly subsumes the previous
 - **Feature monotonicity**: higher levels include all lower-level features
 - **No downgrade**: programs requiring level N features cannot be checked at level M < N
-- **Lattice bounds**: L1 is bottom, L10 is top
+- **Lattice bounds**: L1 is bottom, L10 is the current top (open-ended above)
 
 ## Planned Modules
 

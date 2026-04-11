@@ -1,10 +1,13 @@
 -- SPDX-License-Identifier: PMPL-1.0-or-later
 -- Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
 --
-||| TypeLL 10-Level Type Safety Hierarchy — Monotonicity Proofs
+||| TypeLL Progressive Type Safety Hierarchy — Monotonicity Proofs
 |||
-||| The TypeLL level system defines 10 levels of type safety:
+||| TypeLL is an open-ended progressive framework: levels are added as the
+||| type theory demands, with no fixed upper bound.  The initial checked
+||| set (L1-L10) is defined below; L10 is the current top, not a ceiling.
 |||
+||| Initial checked set (L1-L10):
 |||   L1  : Parse-time safety         (well-formed AST)
 |||   L2  : Schema-binding safety     (named type resolution)
 |||   L3  : Type-compatible operations (unification + operator checking)

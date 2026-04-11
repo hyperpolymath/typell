@@ -5,7 +5,7 @@
 //
 // Exercises the full pipeline: TypeLL core -> VCL bridge -> level checking.
 // Verifies that:
-// - A VCL query type-checks through all 10 levels
+// - A VCL query type-checks through all L1-L10 levels (initial checked set; TypeLL is open-ended above)
 // - Higher levels require lower levels to pass first
 // - The TypeChecker, VCL bridge, and safety level determination work together
 // - Full round-trip: VCL query -> UnifiedType -> TypeChecker -> CheckResult
@@ -37,8 +37,8 @@ use typell_vql::rules::{
 // Full pipeline: VCL -> TypeLL core -> level checking
 // ============================================================================
 
-/// Build a fully-annotated VCL query that passes all 10 levels,
-/// then verify it through the full TypeLL pipeline.
+/// Build a fully-annotated VCL query that passes all L1-L10 levels
+/// (the initial checked set), then verify it through the full TypeLL pipeline.
 #[test]
 fn test_full_pipeline_level_10_query() {
     // Step 1: Construct a VCL query with all extensions.
