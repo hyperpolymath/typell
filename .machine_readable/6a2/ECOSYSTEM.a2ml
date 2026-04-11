@@ -6,7 +6,7 @@
 
 [metadata]
 version = "0.1.0"
-last-updated = "2026-03-01"
+last-updated = "2026-04-11"
 
 [project]
 name = "Typell"
@@ -44,6 +44,9 @@ projects = [
   { name = "gitbot-fleet", relationship = "automation-consumer", notes = "Bot orchestration. Echidnabot could use Typell for formal verification checks." },
   { name = "proven", relationship = "sibling-verification", notes = "BGP/crypto formal verification. Shares Idris2 ABI/FFI standard. Different domain." },
   { name = "idaptik-level-architect", relationship = "potential-consumer", notes = "14 Idris2 modules with cross-domain proofs. Could consume Typell for level validation." },
+  { name = "nextgen-typing", relationship = "coordination-parent", notes = "Coordination monorepo for the full type theory pipeline. Canonical architecture doc lives there." },
+  { name = "katagoria", relationship = "research-upstream", notes = "Research origination space. Type theory ideas graduate from katagoria to typell." },
+  { name = "typed-wasm", relationship = "downstream-application", notes = "TypeLL progressive type safety applied to WasmGC memory. Also aggregate library for AffineScript+Ephapax." },
 ]
 
 [integration-points]
