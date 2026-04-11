@@ -6,7 +6,7 @@
 
 == Overview
 
-TypeLL is the unified type system verification kernel for the hyperpolymath ecosystem. It is to PanLL what LLVM is to Clang: the formal verification substrate that multiple language frontends compile _types_ into. TypeLL provides a 10-level type safety hierarchy used by VCL-total, 007, Kategoria, PanLL, and the nextgen-languages suite.
+TypeLL is the unified type system verification kernel for the hyperpolymath ecosystem. It is to PanLL what LLVM is to Clang: the formal verification substrate that multiple language frontends compile _types_ into. TypeLL is an *open-ended progressive* type safety framework: it works through increasingly strong type properties with no fixed upper bound. New levels are added as the theory demands. The initial progression (L1-L10) is defined below and used by VCL-total, 007, Kategoria, PanLL, and the nextgen-languages suite; this is a starting point, not a ceiling.
 
 == Current State (2026-03-29)
 
@@ -82,7 +82,10 @@ typell-server (HTTP/JSON-RPC on port 7800)
 | Phronesis language bridge
 |===
 
-=== 10-Level Type Safety Hierarchy
+=== Progressive Type Safety Hierarchy (Initial Mapping)
+
+NOTE: This table documents the _initial_ L1-L10 mapping.  TypeLL is open-ended:
+new levels are added as the type theory demands.  L1-L10 is a starting point, not a cap.
 
 [cols="1,2,2"]
 |===
@@ -98,6 +101,7 @@ typell-server (HTTP/JSON-RPC on port 7800)
 | L8  | Effect-tracking safety    | Algebraic effects
 | L9  | Temporal safety           | Session types, state machines
 | L10 | Linearity safety          | QTT bounded usage, linear types
+| L11+ | _Open-ended_             | Future levels added as theory demands
 |===
 
 === ABI/FFI Layer
@@ -111,7 +115,7 @@ typell-server (HTTP/JSON-RPC on port 7800)
 * **007** — Agent meta-language type system (tropical types, Five Facets)
 * **Kategoria** — Category theory verification; Route alpha achieved L9 (session types via Brady indexed monad)
 * **PanLL** — Cross-panel type intelligence (TypeLLService + TypeLLEngine in src/core/)
-* **typed-wasm** — TypeLL 10-level type safety applied to WASM memory, multi-module
+* **typed-wasm** — TypeLL progressive type safety applied to WASM memory (current application: L1-L10), multi-module convergence infrastructure for AffineScript + Ephapax
 * **nextgen-languages** — 14 language frontends via bridge crates
 
 == Milestones
@@ -185,12 +189,12 @@ typell-server (HTTP/JSON-RPC on port 7800)
 * [ ] VCL-total and 007 integrations production-ready
 * [ ] API stability guarantee (no breaking changes to core types)
 * [ ] Performance validated at scale
-* [ ] arXiv paper on 10-level type safety hierarchy
+* [ ] arXiv paper on TypeLL progressive type safety (open-ended hierarchy)
 * [ ] L10 cubical/HoTT support (requires cubical prover — currently a wall in pure Idris2)
 
 == Post-v1.0
 
-* **typed-wasm** — TypeLL 10-level type safety applied to WASM memory, multi-module breakthrough
+* **typed-wasm** — TypeLL progressive type safety applied to WASM memory, multi-module breakthrough; also the AffineScript + Ephapax aggregate library
 * **Additional language bridges** — Ada, Haskell, Rust, Gleam frontends
 * **Distributed type checking** — Federated TypeLL instances sharing type context
 * **Proof search** — Automated theorem proving for type obligations (ECHIDNA integration)
@@ -206,4 +210,4 @@ typell-server (HTTP/JSON-RPC on port 7800)
 
 ---
 
-_Last Updated: 2026-03-29_
+_Last Updated: 2026-04-11_
