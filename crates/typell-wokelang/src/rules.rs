@@ -86,7 +86,7 @@ mod tests {
     fn test_measured_div_gives_velocity() {
         let m = Dimension::length();
         let s = Dimension::time();
-        let result = check_measured_op("/", &m, &s).unwrap();
+        let result = check_measured_op("/", &m, &s).expect("TODO: handle error");
         assert_eq!(result, Dimension::velocity());
     }
 }

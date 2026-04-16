@@ -124,7 +124,7 @@ impl ObligationCollector {
             },
             status: ObligationStatus::Pending,
         });
-        self.obligations.last().unwrap()
+        self.obligations.last().expect("TODO: handle error")
     }
 
     /// Add a term equality obligation (from dependent type unification).
@@ -145,7 +145,7 @@ impl ObligationCollector {
             },
             status: ObligationStatus::Pending,
         });
-        self.obligations.last().unwrap()
+        self.obligations.last().expect("TODO: handle error")
     }
 
     /// Get all pending obligations.
@@ -193,7 +193,7 @@ impl ObligationCollector {
             },
             status: ObligationStatus::Pending,
         });
-        self.obligations.last().unwrap()
+        self.obligations.last().expect("TODO: handle error")
     }
 
     /// Add a dimension compatibility obligation.
@@ -217,7 +217,7 @@ impl ObligationCollector {
             },
             status: ObligationStatus::Pending,
         });
-        self.obligations.last().unwrap()
+        self.obligations.last().expect("TODO: handle error")
     }
 
     /// Attempt to automatically discharge refinement obligations

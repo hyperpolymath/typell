@@ -87,7 +87,7 @@ mod tests {
 
     #[test]
     fn test_bounded_loop_valid() {
-        assert_eq!(check_bounded_loop(0, 10).unwrap(), 10);
+        assert_eq!(check_bounded_loop(0, 10).expect("TODO: handle error"), 10);
     }
 
     #[test]
