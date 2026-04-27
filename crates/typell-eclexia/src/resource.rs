@@ -134,7 +134,7 @@ mod tests {
 
     #[test]
     fn test_resource_type_for_energy() {
-        let ty = resource_type_for_name("energy").expect("TODO: handle error");
+        let ty = resource_type_for_name("energy").unwrap();
         match ty {
             Type::Resource { dimension, .. } => {
                 assert_eq!(dimension, Dimension::energy());
@@ -145,7 +145,7 @@ mod tests {
 
     #[test]
     fn test_linear_resource_is_linear() {
-        let unified = linear_resource_type("energy").expect("TODO: handle error");
+        let unified = linear_resource_type("energy").unwrap();
         assert_eq!(unified.usage, UsageQuantifier::One);
     }
 
@@ -160,24 +160,24 @@ mod tests {
 
     #[test]
     fn test_resource_addition_same_dimension() {
-        let energy = resource_type_for_name("energy").expect("TODO: handle error");
+        let energy = resource_type_for_name("energy").unwrap();
         let result = check_resource_op("+", &energy, &energy, Span::synthetic());
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_resource_addition_different_dimension() {
-        let energy = resource_type_for_name("energy").expect("TODO: handle error");
-        let time = resource_type_for_name("time").expect("TODO: handle error");
+        let energy = resource_type_for_name("energy").unwrap();
+        let time = resource_type_for_name("time").unwrap();
         let result = check_resource_op("+", &energy, &time, Span::synthetic());
         assert!(result.is_err());
     }
 
     #[test]
     fn test_energy_div_time_gives_power() {
-        let energy = resource_type_for_name("energy").expect("TODO: handle error");
-        let time = resource_type_for_name("time").expect("TODO: handle error");
-        let result = check_resource_op("/", &energy, &time, Span::synthetic()).expect("TODO: handle error");
+        let energy = resource_type_for_name("energy").unwrap();
+        let time = resource_type_for_name("time").unwrap();
+        let result = check_resource_op("/", &energy, &time, Span::synthetic()).unwrap();
         match result {
             Type::Resource { dimension, .. } => {
                 assert_eq!(dimension, Dimension::power());

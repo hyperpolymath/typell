@@ -124,7 +124,7 @@ impl ObligationCollector {
             },
             status: ObligationStatus::Pending,
         });
-        self.obligations.last().expect("TODO: handle error")
+        self.obligations.last().expect("Vec::last() after a Vec::push() on the same line is statically guaranteed to be Some")
     }
 
     /// Add a term equality obligation (from dependent type unification).
@@ -145,7 +145,7 @@ impl ObligationCollector {
             },
             status: ObligationStatus::Pending,
         });
-        self.obligations.last().expect("TODO: handle error")
+        self.obligations.last().expect("Vec::last() after a Vec::push() on the same line is statically guaranteed to be Some")
     }
 
     /// Get all pending obligations.
@@ -193,7 +193,7 @@ impl ObligationCollector {
             },
             status: ObligationStatus::Pending,
         });
-        self.obligations.last().expect("TODO: handle error")
+        self.obligations.last().expect("Vec::last() after a Vec::push() on the same line is statically guaranteed to be Some")
     }
 
     /// Add a dimension compatibility obligation.
@@ -217,7 +217,7 @@ impl ObligationCollector {
             },
             status: ObligationStatus::Pending,
         });
-        self.obligations.last().expect("TODO: handle error")
+        self.obligations.last().expect("Vec::last() after a Vec::push() on the same line is statically guaranteed to be Some")
     }
 
     /// Attempt to automatically discharge refinement obligations

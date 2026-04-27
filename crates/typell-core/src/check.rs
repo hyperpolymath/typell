@@ -277,7 +277,7 @@ mod tests {
             "x",
             UnifiedType::simple(Type::Primitive(PrimitiveType::Int)),
         );
-        let ty = checker.infer_var("x", Span::synthetic()).expect("TODO: handle error");
+        let ty = checker.infer_var("x", Span::synthetic()).unwrap();
         assert_eq!(ty, Type::Primitive(PrimitiveType::Int));
     }
 
@@ -286,7 +286,7 @@ mod tests {
         let mut checker = TypeChecker::new(TypeDiscipline::Unrestricted);
         let var = checker.fresh_var();
         let int = Type::Primitive(PrimitiveType::Int);
-        checker.unify(&var, &int, Span::synthetic()).expect("TODO: handle error");
+        checker.unify(&var, &int, Span::synthetic()).unwrap();
         assert_eq!(checker.apply(&var), int);
     }
 

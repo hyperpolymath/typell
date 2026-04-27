@@ -264,7 +264,7 @@ mod tests {
             Span::synthetic(),
         );
         assert!(result.is_ok());
-        if let Type::Resource { dimension, .. } = result.expect("TODO: handle error") {
+        if let Type::Resource { dimension, .. } = result.unwrap() {
             assert_eq!(dimension, Dimension::energy());
         } else {
             panic!("expected Resource type");
@@ -291,7 +291,7 @@ mod tests {
             Span::synthetic(),
         );
         assert!(result.is_ok());
-        if let Type::Resource { dimension, .. } = result.expect("TODO: handle error") {
+        if let Type::Resource { dimension, .. } = result.unwrap() {
             // Energy * Time = kg*m^2/s^2 * s = kg*m^2/s
             let expected = Dimension::energy().multiply(&Dimension::time());
             assert_eq!(dimension, expected);
@@ -307,7 +307,7 @@ mod tests {
             Span::synthetic(),
         );
         assert!(result.is_ok());
-        if let Type::Resource { dimension, .. } = result.expect("TODO: handle error") {
+        if let Type::Resource { dimension, .. } = result.unwrap() {
             assert_eq!(dimension, Dimension::power());
         }
     }
@@ -321,7 +321,7 @@ mod tests {
             Span::synthetic(),
         );
         assert!(result.is_ok());
-        if let Type::Resource { dimension, .. } = result.expect("TODO: handle error") {
+        if let Type::Resource { dimension, .. } = result.unwrap() {
             assert_eq!(dimension, Dimension::energy());
         }
     }
@@ -348,7 +348,7 @@ mod tests {
             Span::synthetic(),
         );
         assert!(result.is_ok());
-        if let Type::Resource { dimension, .. } = result.expect("TODO: handle error") {
+        if let Type::Resource { dimension, .. } = result.unwrap() {
             assert_eq!(dimension, Dimension::energy().pow(3));
         }
     }
@@ -369,7 +369,7 @@ mod tests {
             Span::synthetic(),
         );
         assert!(result.is_ok());
-        if let Type::Resource { dimension, .. } = result.expect("TODO: handle error") {
+        if let Type::Resource { dimension, .. } = result.unwrap() {
             assert_eq!(dimension, Dimension::energy().pow(3));
         }
     }
