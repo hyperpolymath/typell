@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: PMPL-1.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 = TypeLL Roadmap
 :toc:
 :toclevels: 3
@@ -207,7 +207,7 @@ new levels are added as the type theory demands.  L1-L10 is a starting point, no
 
 == License & Governance
 
-**License:** PMPL-1.0-or-later (Palimpsest License)
+**License:** MPL-2.0 (Palimpsest License)
 
 **Author:** Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
 

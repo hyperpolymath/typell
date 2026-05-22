@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: PMPL-1.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
 
 # STOP - CRITICAL READING REQUIRED
@@ -164,7 +164,7 @@ Policy enforcement contracts (k9, dust, lust, must, trust).
 5. **Idris2 for ABI** — All formal type system specs live in Idris2
 6. **Rust for kernel** — Implementation in Rust (Tauri-compatible, PanLL's backend)
 7. **Zig for FFI** — C-compatible FFI bridge per hyperpolymath standard
-8. **License consistency** — All code PMPL-1.0-or-later
+8. **License consistency** — All code MPL-2.0
 9. **Author attribution** — Always "Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>"
 10. **No believe_me** — Zero uses of believe_me, assert_total, assert_smaller in Idris2
 11. **Container images** — Chainguard base, Podman, Containerfile
@@ -241,5 +241,5 @@ Full protocol: `boj-server/cartridges/echidna-llm-mcp/docs/CALL-PROTOCOL.adoc`
 - **Format Version:** 1.0.0
 - **Created:** 2026-03-01
 - **Maintained By:** hyperpolymath
-- **License:** PMPL-1.0-or-later
+- **License:** MPL-2.0
 - **Protocol:** https://github.com/hyperpolymath/0-ai-gatekeeper-protocol

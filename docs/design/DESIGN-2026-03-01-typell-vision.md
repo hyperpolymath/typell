@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: PMPL-1.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 # Design Document: Typell Vision
 # Date: 2026-03-01
 # Repo: typell

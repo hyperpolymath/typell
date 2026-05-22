@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: PMPL-1.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
 #
 # Nix flake for Typell
@@ -160,7 +160,7 @@
           meta = with pkgs.lib; {
             description = "PanLL's verification kernel — dependent types, linear types, session types, QTT, proof-carrying code, and effect systems for neurosymbolic query languages";
             homepage = "https://github.com/hyperpolymath/Typell";
-            license = licenses.mpl20; # PMPL-1.0-or-later extends MPL-2.0
+            license = licenses.mpl20; # MPL-2.0 extends MPL-2.0
             maintainers = [];
             platforms = [ "x86_64-linux" "aarch64-linux" ];
           };
