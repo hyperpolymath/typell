@@ -1,9 +1,14 @@
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
 = Typell — PanLL's Verification Kernel
+image:https://img.shields.io/badge/OpenSSF-Best_Practices-green?logo=openssourcesecurity[OpenSSF Best Practices,link="https://www.bestpractices.dev/en/projects/new?repo_url=https://github.com/hyperpolymath/typell"]
+
+image:https://img.shields.io/badge/License-MPL_2.0-blue.svg[License: MPL-2.0,link="https://opensource.org/licenses/MPL-2.0"]
+
 Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
 :toc:
 :license: MPL-2.0
 
-// SPDX-License-Identifier: MPL-2.0
 
 [TIP]
 ====
@@ -181,6 +186,6 @@ The normal installation instructions remain below for anyone who prefers manual 
 
 == License
 
-MPL-2.0
+This project is licensed under the Mozilla Public License, v. 2.0. See the `LICENSE` file for details.
 
-Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
+SPDX-License-Identifier: MPL-2.0
