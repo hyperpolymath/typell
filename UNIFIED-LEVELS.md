@@ -1,3 +1,7 @@
+<!--
+SPDX-License-Identifier: MPL-2.0
+Copyright (c) Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+-->
 // SPDX-License-Identifier: PMPL-2.0-or-later
 = Unified Level System — TypeLL / VCL-total / VeriSimDB / TypedQLiser / PanLL
 :toc:
