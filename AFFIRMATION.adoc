@@ -1,0 +1,327 @@
+// SPDX-License-Identifier: MPL-2.0
+// SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+= AFFIRMATION — typell, as of 2026-06-16
+:toc: macro
+:toclevels: 2
+
+_the No-Bullshit file: what we affirm was true and checkable at this moment_
+
+[NOTE]
+====
+*Genre.* An *affirmation* is a solemn declaration of the truth of a statement,
+made by someone who _declines to swear an oath_. That is exactly what this is:
+our truth-as-best-believed at a stamped instant — binding on our honesty, not a
+claim of infallibility. It is not the README and not the EXPLAINME:
+
+[cols="1,3,2",options="header"]
+|===
+| File | Answers | Tense
+| `README.adoc`      | _Where is this going, and why?_ — state of thinking, steering, intent | future / aspirational
+| `EXPLAINME.adoc`   | _How is it built, and what's the evidence?_ — engineering underpinnings | descriptive / mechanism
+| *`AFFIRMATION.adoc`* (this file) | _What can we honestly affirm was *true and checkable* at a stamped moment?_ | a frozen instant, falsifiable
+|===
+
+Each repo in the estate may carry one (`AFFIRMATION.adoc`). It is deliberately
+small, dated, and signed, so a reader can hold us to exactly what we affirmed,
+when we affirmed it.
+====
+
+toc::[]
+
+== What this is, and how it is designed to work
+
+*What it is.* A short, dated, jointly-signed snapshot of what we can _honestly
+and verifiably_ claim about this repo at one exact commit. Nothing here is
+marketing and nothing is a promise about the future — both of those live in the
+README. This file is the receipt.
+
+*How it is designed to work.* Three moving parts make it trustworthy:
+
+. *Ground truth, not memory.* Every claim below was produced by _running the
+  tool in the session that wrote this file_ (`cargo build`, `cargo test`,
+  `idris2 --check`, `zig build`). Where a status doc, `STATE.a2ml`, or a prior
+  session said otherwise, the live run wins and we flag the contradiction
+  explicitly.
+. *A frozen anchor.* The file names the exact commit SHA, branch, UTC timestamp,
+  and toolchain (see <<Verifiable anchor>>), so "true" always means "true _at
+  this point_". Move the SHA and the file becomes a draft until re-run.
+. *A real signature.* It is landed by a *signed git commit*; that signature over
+  this content at the anchored SHA is what makes the affirmation tamper-evident
+  and attributable — not the prose alone.
+
+*We are fallible.* We can be wrong, stale, or simply mistaken about our own
+work. This file is our best honest belief, not a proof of its own correctness.
+Treat it as a falsifiable claim, not gospel.
+
+== The epistemic contract (read this before you trust _or_ attack)
+
+This document records our *best joint belief* at the timestamp below. It is
+*not a guarantee of correctness.* We may be wrong. We may have missed something
+— a hole, a stale doc, a proof that does not in fact check, a rename left
+half-finished.
+
+*No intentional overclaim.* That is the only guarantee here: we have not
+_knowingly_ inflated anything. Where something is tested-but-not-proved, we say
+so. Where a proof file exists but does *not* typecheck at this commit, we say
+so and we do _not_ call it "proved". Where something is a placeholder, broken,
+or refuted, we say so. If you find an honest claim here that turns out false,
+that is an error to be fixed — not a lie.
+
+*Standing invitation to refute.* You are _invited_ to bulldoze any claim in this
+file. We want that. But the fair form of the attack is:
+
+. Read this file at the stamped commit.
+. Reproduce (or fail to reproduce) the checks in <<reproduce,Reproduce it yourself>>.
+. _Then_ tell us where the discrepancy is, against the artefact as it stood at
+  this moment — so we can either justify it or concede it on the record.
+
+An attack that skips steps 1–2 is attacking a strawman of a different date.
+
+*No fights before the facts are cleared up.* We are not interested in a dispute
+over a claim until the discrepancy has actually been checked against the
+artefact at this commit and we have had the chance to either justify it or
+concede it on the record. Good faith both ways: bring a reproducible
+discrepancy and we will fix the claim, the doc, or the code — promptly and
+without defensiveness. The goal is a corrected record, not a won argument.
+
+== Verifiable anchor
+
+[cols="1,3"]
+|===
+| *Repo*        | `hyperpolymath/typell` (PanLL's verification kernel — a Rust workspace; *not* affinescript, *not* ephapax)
+| *Branch*      | `claude/safedom-res-stale-sweep`
+| *Commit (HEAD)* | `552f7594a3826d4e059dc3d3dac53d473a2d22c9`
+| *Permalink*   | https://github.com/hyperpolymath/typell/tree/552f7594a3826d4e059dc3d3dac53d473a2d22c9
+| *Verified (UTC)* | 2026-06-16T12:25:56Z
+| *Working-tree delta at verification* | Tracked tree *clean* at the start of the run. The only delta introduced was the untracked `ffi/zig/.zig-cache/` directory (a Zig build-cache artefact from the `zig build` attempt below); no source file was modified. This file (`AFFIRMATION.adoc`) is itself untracked until the owner signs it. None of this affects the results below.
+| *Toolchain*   | cargo 1.95.0 · rustc 1.95.0 · just 1.50.0 · Idris2 0.8.0 · Zig 0.15.2
+|===
+
+[IMPORTANT]
+If you are reading this at a _later_ commit, the claims may have drifted.
+Re-run <<reproduce>> and write a fresh affirmation; do not trust a stale one.
+
+== Companion documents and repo metadata (cross-check)
+
+This affirmation should be read against the repo's own public claims. Where they
+drift from what we verified, we say so here rather than quietly leave the reader
+to find out.
+
+* *`README.adoc`* — present. link:README.adoc[_"Typell — PanLL's Verification
+  Kernel"_]. Sells the vision (dependent / linear / session types, QTT, effect
+  systems, proof-carrying code) and states *"Phase 0: Vision capture and repo
+  scaffolding — complete."* That phase-framing is consistent with what we found;
+  the *type-system claims* are aspirational at this commit (see honest state).
+* *`EXPLAINME.adoc`* — present. link:EXPLAINME.adoc[_"Show Me The Receipts"_].
+  Honestly carries its own caveat: _"only the kernel architecture exists … the
+  backends are in design/port stages."_ That is fair. It does *not*, however,
+  mention that the Rust workspace does not currently build as a whole, nor that
+  the Idris2 ABI does not typecheck — gaps this affirmation records.
+* *GitHub repo description* — _"PanLL's verification kernel — dependent types,
+  linear types, session types, QTT, proof-carrying code, and effect systems for
+  neurosymbolic query languages"_. *Drift:* this reads as delivered capability;
+  at this commit these are crate scaffolds and bridge stubs with passing
+  unit-tests, not a working verifier. Read it as scope, not status.
+* *GitHub topics* — `ai`, `development`, `formal-verification`, `neurosymbolic`,
+  `open-source`, `rust`, `software`. *Drift:* `formal-verification` is *not yet
+  earned* — the Idris2 soundness proofs (`src/abi/*.idr`) do *not* typecheck at
+  this commit (errors + open holes; see below). `rust` is accurate.
+
+(`gh` metadata fetched in-session via the WSL `gh` client; the Windows `gh.exe`
+returned HTTP 401 and was not used.)
+
+== The honest state (one breath)
+
+*Typell at this commit is an early-alpha 14-crate Rust scaffold for a database
+query verification kernel: 13 of its 14 crates compile and their 245 library
+unit-tests pass green right now — but the workspace as a whole does NOT build (a
+`typell_vql` → `typell-vcl` rename was left half-finished and breaks
+`typell-server` plus two integration-test targets), the documented `just test`
+entrypoint is a placeholder stub that runs nothing, the Idris2 ABI "soundness
+proofs" do NOT typecheck, and the Zig FFI does NOT build against the installed
+Zig 0.15.2. There is real, green, tested Rust here; there is no verified
+formal-verification here today.*
+
+=== What is solid (and how we checked)
+
+* *13 of 14 workspace crates compile clean.* HOW: `cargo build --workspace
+  --exclude typell-server` → *exit 0* ("Finished `dev` profile" — `typell-core`,
+  `-eclexia`, `-affinescript`, `-ephapax`, `-wokelang`, `-tangle`, `-betlang`,
+  `-mylang`, `-oblibeny`, `-jtv`, `-phronesis`, `-errorlang`, `-vcl`).
+* *245 library/binary unit-tests pass; 0 failed, 0 ignored.* HOW: `cargo test
+  --workspace --exclude typell-server --lib --bins` → *exit 0*, thirteen
+  `test result: ok` lines summing to *245 passed* (per-crate: 13, 10, 106, 10,
+  9, 12, 11, 8, 13, 9, 11, 24, 9). These are genuine, fast, green unit tests of
+  the bridge/rules/resource modules.
+* *Toolchains are present and runnable* — cargo/rustc 1.95.0, just 1.50.0,
+  Idris2 0.8.0, Zig 0.15.2 all responded to `--version`.
+* *No `believe_me` / `assert_total` / `postulate` appears in any `.idr` source.*
+  HOW: `grep -rniE "believe_me|assert_total|postulate|trustMe"` over `src/abi/`
+  matched only README prose and one explanatory comment. The "zero believe_me"
+  invariant is *literally* satisfied — but see the honest nuance: it is
+  *vacuously* satisfied because the proofs do not typecheck at all.
+
+=== The honest nuance you must not lose
+
+This is the proved-core vs tested-implementation gap, and for typell it is
+*wider than usual and points the other way*: there is a *tested implementation
+core* (245 green Rust unit-tests) and there is *no proved core at all at this
+commit*. The Idris2 files in `src/abi/` are *intended* to be the soundness
+proofs for the calculus underlying `check.rs`/`infer.rs`, but they *do not
+compile* (errors + open `?holes`; see loud-failures). So:
+
+* Nothing in typell is "proved" today. Every formal-verification claim is, at
+  best, "argued in Idris2 source that does not yet typecheck".
+* Even if those proofs did check, they would model an *idealised core calculus*,
+  not establish that the Rust kernel _refines_ it — the same unproved bridge
+  every such project has. We are two steps short of that bridge, not one.
+* The README/topics word *"formal-verification"* is therefore not earned at this
+  commit. Anyone citing typell as "formally verified" is overclaiming.
+
+*Hard proofs are explicitly delegated to Echidna* (README: _"NOT a theorem
+prover — it delegates complex proofs to Echidna"_). We did *not* run Echidna in
+this session; that boundary is out of scope here and is neither confirmed nor
+refuted by this affirmation.
+
+=== Known-broken but fenced here (loud failures, recorded not hidden)
+
+[NOTE]
+====
+*1. The full workspace does not build.* `cargo build --workspace` → *exit 101*.
+`crates/typell-server/src/handlers.rs` still imports `typell_vql::{bridge,levels,
+rules}`, but that crate was renamed to `typell-vcl` (the workspace member in
+`Cargo.toml` is `crates/typell-vcl`). The rename was left half-finished.
+
+*2. Two integration-test targets do not compile* — same incomplete rename, in
+`tests/integration_test.rs` and `crates/typell-vcl/tests/vcl_bridge_tests.rs`
+(both `use typell_vql::…`). So the 245 figure above is *lib/bin unit-tests only*;
+those two integration suites could not run at all. *We did not run any integration
+suite this session.* There are also three further integration targets we did
+*not* exercise — `crates/typell-core/tests/{e2e_test,property_test,
+core_comprehensive_tests}.rs` (these do *not* import `typell_vql`, so the rename
+does not break them) — plus a `tests/fuzz/` that is only a `placeholder.txt` stub.
+We make *no* claim about whether those three core suites pass: their status is
+*unknown* at this commit because they were never run. Do not read "245 green" as
+covering end-to-end or property behaviour.
+
+*3. `just test` runs nothing.* The `test` recipe in `Justfile` is a placeholder
+(`@echo "Running tests..."` + `# TODO: Replace with your test command`). The
+repo's own documented test entrypoint executes no tests.
+
+*4. The Idris2 ABI proofs do not typecheck.* `idris2 --check` (in a corrected
+`TYPELL/ABI/` source layout) fails on five of six modules: `Types.idr` /
+`Layout.idr` — `%language ElabReflection not enabled`, `Undefined name DecEq`,
+missing `So`/`CInt` implementations (missing imports/pragmas); `Soundness.idr` /
+`InferenceSoundness.idr` — `Undefined name Step`, variable-accessibility errors,
+a `substitutionLemma` unification mismatch, plus open holes `?renameTyHole` /
+`?renameTy'Hole`; `LevelMonotonicity.idr` — undefined `lteRefl` /
+`lteTransitive` / `succInjective`. Only `Foreign.idr` (pure FFI declarations, no
+proofs) typechecks. There is also a module-casing inconsistency: `Foreign.idr`
+declares `Typell.ABI.Foreign` while the others use `TYPELL.ABI.*`.
+
+*5. The Zig FFI does not build.* `zig build` in `ffi/zig/` → *exit 2*:
+`build.zig:12` calls `b.addSharedLibrary(.{…})`, which the installed Zig 0.15.2
+no longer provides (`no field or member function named 'addSharedLibrary'`). The
+FFI is pinned to an older Zig build API.
+====
+
+=== Outstanding / weak / refuted (no spin)
+
+* *`STATE.a2ml` is stale / refuted at this commit.* It records
+  `last-result = "221 tests passing, 0 failures, 0 warnings"`, `total-tests =
+  221`, and lists every bridge crate as `status = "complete"`. The live run
+  shows *245* lib/bin unit-tests (not 221), the workspace *not building*, and a
+  `typell-vql` crate name that no longer exists (it is `typell-vcl`). The
+  `completion-percentage = 35` and the per-phase percentages
+  (e.g. "Phase 1: Idris2 ABI — 100%") are *not* corroborated; the Idris2 ABI
+  does not typecheck. Treat `STATE.a2ml` as aspirational, not as evidence.
+* *"Zero believe_me" is true but vacuous* — no soundness is established because
+  the proofs do not compile (see nuance above).
+* *No claim of a working verification protocol, type checker, or backend was
+  reproduced.* The JSON-RPC server crate (`typell-server`) is precisely the one
+  that does not compile. The VCL/GQL/KQL backends are scaffolds, consistent with
+  the README's own "design/port stages" caveat.
+
+== Reproduce it yourself
+
+From the repo root, at the commit above:
+
+[source,sh]
+----
+# Toolchains used
+cargo --version            # cargo 1.95.0
+rustc --version            # rustc 1.95.0
+just --version             # just 1.50.0
+idris2 --version           # Idris 2, version 0.8.0
+zig version                # 0.15.2
+
+# Full workspace build — FAILS (exit 101): typell_vql -> typell-vcl rename half-done
+CARGO_INCREMENTAL=0 cargo build --workspace
+
+# 13/14 crates build — exit 0
+CARGO_INCREMENTAL=0 cargo build --workspace --exclude typell-server
+
+# Unit tests on the buildable crates — exit 0; 245 passed, 0 failed, 0 ignored
+CARGO_INCREMENTAL=0 cargo test --workspace --exclude typell-server --lib --bins
+
+# Two integration-test targets — FAIL to compile (same rename), e.g.:
+CARGO_INCREMENTAL=0 cargo test -p typell-vcl --test vcl_bridge_tests   # error[E0433] typell_vql
+# NOT run this session (status unknown): the typell-core integration suites
+#   (they do NOT import typell_vql, so the rename does not break them):
+#   CARGO_INCREMENTAL=0 cargo test -p typell-core --test e2e_test --test property_test --test core_comprehensive_tests
+
+# 'just test' runs NOTHING (placeholder recipe) — observe it only echoes
+just test
+
+# Idris2 ABI — does NOT typecheck (Foreign.idr is the only module that passes)
+#   modules declare TYPELL.ABI.<M>, so check from a matching source dir:
+tmp=$(mktemp -d); mkdir -p "$tmp/TYPELL/ABI"; cp src/abi/*.idr "$tmp/TYPELL/ABI/"
+( cd "$tmp" && for m in Types Layout Foreign Soundness InferenceSoundness LevelMonotonicity; do \
+    echo "-- $m"; idris2 --check "TYPELL/ABI/$m.idr"; done )
+
+# Zig FFI — does NOT build against Zig 0.15.2 (addSharedLibrary removed)
+( cd ffi/zig && zig build )   # exit 2
+----
+
+Expected: the two `--exclude typell-server` commands are green (build exit 0;
+*245 passed; 0 failed; 0 ignored*); the workspace build, the two `typell_vql`
+integration targets, `just test`, the Idris2 ABI check, and `zig build` all fail
+exactly as fenced above. The three `typell-core` integration suites were *not
+run* this session (status unknown, not asserted). Hard proofs (Echidna) are out
+of scope and were not run.
+
+== One-line characterisation (quote this)
+
+[quote]
+____
+"A real, early-alpha Rust verification-kernel scaffold: 13/14 crates build and
+*245 unit-tests pass green now* — but the full workspace does NOT build (an
+unfinished `typell_vql`→`typell-vcl` rename), `just test` runs nothing, the
+Idris2 'soundness proofs' do NOT typecheck (so 'formal-verification' is unearned
+and 'zero believe_me' is vacuous), and the Zig FFI does NOT build on Zig 0.15.2.
+Hard proofs are delegated to Echidna and were not run. Tested-in-parts, proved
+nowhere — promising scaffold, not a working verifier. No intentional overclaim."
+____
+
+== Joint attestation
+
+We, the undersigned, assert that *to the best of our joint belief at the
+timestamp above, every claim in this file is true and was checked as described*
+— with no intentional overclaim, and with the open gaps stated rather than
+hidden.
+
+* *Engineering party (AI):* Claude Opus 4.8 (`claude-opus-4-8[1m]`) — ran the
+  build, test, and proof checks recorded here on 2026-06-16T12:25:56Z and stands
+  behind the wording above as a faithful report of those runs.
+* *Owner / maintainer:* Jonathan D.A. Jewell — _signs by committing this file
+  with `-S` (`id_ed25519_signing`); the git commit signature over this content,
+  at the commit SHA recorded above, is the cryptographic form of this
+  affirmation._
++
+Signed-off-date: ____________________  (fill on signing)
+
+[TIP]
+The authoritative, tamper-evident signature is the *signed git commit* that
+lands this file. If the SHA in <<Verifiable anchor>> matches the parent of that
+commit and the commit verifies, this affirmation is anchored. If they don't
+match, treat the file as a draft.
