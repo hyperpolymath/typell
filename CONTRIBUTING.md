@@ -42,7 +42,7 @@ typell/
 ├── CONTRIBUTING.md      # This file
 ├── GOVERNANCE.md
 ├── LICENSE
-├── MAINTAINERS.md
+├── MAINTAINERS.adoc
 ├── README.adoc
 ├── SECURITY.md
 ├── flake.nix            # Nix flake — fallback (Perimeter 1)
