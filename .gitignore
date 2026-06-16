@@ -94,6 +94,9 @@ ai-cli-crash-capture/
 # KDE metadata
 .directory
 
+# Zig FFI build cache (ffi/zig)
+ffi/zig/.zig-cache/
+
 # Sync artifacts
 sync_report*.txt
 
