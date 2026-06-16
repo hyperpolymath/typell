@@ -35,7 +35,7 @@
 
 Brief description of Typell and its architecture.
 
-> See [TOPOLOGY.md](../TOPOLOGY.md) for the full architecture diagram and completion dashboard.
+> See [TOPOLOGY.md](TOPOLOGY.md) for the full architecture diagram and completion dashboard.
 
 ## Assets
 
