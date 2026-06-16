@@ -125,7 +125,7 @@ See `.machine_readable/6a2/STATE.a2ml` for current project state.
 * **FFI** -> **Zig** (`ffi/zig/src/*.zig`) — C-compatible function implementations
 * **Generated C Headers** -> Auto-generated from Idris2 ABI (`generated/abi/*.h`)
 
-See `ABI-FFI-README.md` for complete documentation.
+See `docs/design/ABI-FFI-README.md` for complete documentation.
 
 == AI Gatekeeper Protocol (MANDATORY)
 
