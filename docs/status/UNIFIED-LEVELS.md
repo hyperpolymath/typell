@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: PMPL-2.0-or-later
+// SPDX-License-Identifier: CC-BY-SA-4.0
 = Unified Level System — TypeLL / VCL-total / VeriSimDB / TypedQLiser / PanLL
 :toc:
 
