@@ -78,12 +78,12 @@ VS Code extensions, CLI tools, and CI/CD pipelines are secondary consumers.
 |Port from ReScript
 |8-modality queries, cross-modal proofs, hexad types
 
-|GQL-dt++
+|GPNL-dt++
 |LithoGlyph
 |Bridge (Lean 4)
 |Knowledge graphs, RATIONALE clause, refinement types
 
-|KQL-dt++
+|KRL-dt++
 |QuandleDB
 |Design from scratch
 |Category-theoretic schema, equality saturation, HoTT
