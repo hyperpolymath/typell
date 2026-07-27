@@ -263,14 +263,7 @@ init:
 
 # Build the project (debug mode)
 build *args:
-    @echo "Building typell (debug)..."
-    # TODO: Replace with your build command
-    # Examples:
-    #   cargo build {{args}}                    # Rust
-    #   mix compile {{args}}                    # Elixir
-    #   zig build {{args}}                      # Zig
-    #   deno task build {{args}}                # Deno/ReScript
-    @echo "Build complete"
+    cargo build --workspace --locked {{args}}
 
 # Build in release mode with optimizations
 build-release *args:
@@ -305,16 +298,16 @@ clean-all: clean
 # TEST & QUALITY
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Run all tests
-test *args:
-    @echo "Running tests..."
-    # TODO: Replace with your test command
-    # Examples:
-    #   cargo test {{args}}
-    #   mix test {{args}}
-    #   zig build test {{args}}
-    #   deno test {{args}}
-    @echo "Tests passed!"
+# Run all tests: the Rust workspace (incl. the kategoria conformance
+# suite) and the Idris 2 ABI proof gate.
+test *args: proof-check
+    cargo test --workspace --locked {{args}}
+
+# Type-check the Idris 2 ABI proof modules (5 required + Layout
+# quarantined). Hard-fails when idris2 is absent — a gate that skips is
+# not a gate. See PROOF-STATUS.adoc.
+proof-check:
+    ./scripts/check-idris2-proofs.sh
 
 # Run tests with verbose output
 test-verbose:

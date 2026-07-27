@@ -13,13 +13,13 @@
 // - Typing rules: consume_after, usage_limit, session/effect compatibility,
 //   transaction transitions, federation source
 
-use typell_vql::bridge::{
+use typell_vcl::bridge::{
     determine_safety_level, session_protocol_to_session, vcl_to_typell, vcl_to_unified,
     VqlEffectLabel, VqlExtensions, VqlModality, VqlQueryType, VqlSessionProtocol,
     VqlTransactionState,
 };
-use typell_vql::levels::{QueryPath, SafetyLevel, ALL_LEVELS};
-use typell_vql::rules::{
+use typell_vcl::levels::{QueryPath, SafetyLevel, ALL_LEVELS};
+use typell_vcl::rules::{
     check_consume_after, check_federate_requires_source, check_session_effects_compatible,
     check_transaction_transition, check_usage_limit,
 };
@@ -679,7 +679,7 @@ fn test_safety_report_serialise_round_trip() {
     };
     let report = determine_safety_level(&vcl);
     let json = serde_json::to_string(&report).expect("serialise report");
-    let recovered: typell_vql::levels::SafetyReport =
+    let recovered: typell_vcl::levels::SafetyReport =
         serde_json::from_str(&json).expect("deserialise report");
     assert_eq!(recovered.max_level, report.max_level);
     assert_eq!(recovered.checks.len(), 10);

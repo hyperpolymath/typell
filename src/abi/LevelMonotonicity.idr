@@ -39,6 +39,28 @@ import Decidable.Equality
 %default total
 
 -- ============================================================================
+-- Local Nat/LTE lemmas
+-- ============================================================================
+-- Names drifted across stdlib versions (lteRefl / lteTransitive /
+-- lteAntisymmetric / succInjective are not exported by this base);
+-- defined here so the module is self-contained under Idris 2 0.7.0+.
+
+lteRefl : {n : Nat} -> LTE n n
+lteRefl {n = Z} = LTEZero
+lteRefl {n = S k} = LTESucc lteRefl
+
+lteTransitive : LTE a b -> LTE b c -> LTE a c
+lteTransitive LTEZero _ = LTEZero
+lteTransitive (LTESucc ab) (LTESucc bc) = LTESucc (lteTransitive ab bc)
+
+lteAntisymmetric : LTE a b -> LTE b a -> a = b
+lteAntisymmetric LTEZero LTEZero = Refl
+lteAntisymmetric (LTESucc x) (LTESucc y) = cong S (lteAntisymmetric x y)
+
+succInjective : (a, b : Nat) -> S a = S b -> a = b
+succInjective _ _ Refl = Refl
+
+-- ============================================================================
 -- Level Representation
 -- ============================================================================
 
@@ -138,11 +160,18 @@ record LevelSpec where
 ||| This is parameterised by a program representation P.
 public export
 data SafeAt : (program : p) -> Level -> Type where
-  ||| A program safe at L1 has a well-formed AST.
+  ||| Base: level-1 safety (a well-formed AST) is established outside this
+  ||| abstract model — the kernel's parser supplies the evidence.
+  ||| (The previous formulation `SafeAt prog L1 -> SafeAt prog L1` was
+  ||| circular, leaving the whole family uninhabited.)
   SafeL1  : SafeAt prog L1
-         -> SafeAt prog L1
-  ||| A program safe at L(n+1) is safe at Ln and satisfies the new property.
-  SafeUp  : SafeAt prog (MkLevel n)
+  ||| Step: safety at L(n+1) is built from safety at Ln (plus the level's
+  ||| new property, which this abstract model does not represent).
+  ||| Indices mirror levelStrictlyIncreasing: `weaken n` and `FS n` are
+  ||| both Fin 10 when n : Fin 9. (The previous `MkLevel n -> MkLevel (FS n)`
+  ||| forced FS n : Fin 11 — an off-by-one that never type-checked.)
+  SafeUp  : {n : Fin 9}
+          -> SafeAt prog (MkLevel (weaken n))
           -> SafeAt prog (MkLevel (FS n))
 
 -- ============================================================================
@@ -156,12 +185,13 @@ lteLevelRefl (MkLevel f) = lteRefl
 
 ||| Level ordering is transitive.
 public export
-lteLevelTrans : LTE_Level a b -> LTE_Level b c -> LTE_Level a c
-lteLevelTrans ab bc = lteTransitive ab bc
+lteLevelTrans : {a, b, c : Level} -> LTE_Level a b -> LTE_Level b c -> LTE_Level a c
+lteLevelTrans {a = MkLevel fa} {b = MkLevel fb} {c = MkLevel fc} ab bc =
+  lteTransitive ab bc
 
 ||| Level ordering is antisymmetric (over indices).
 public export
-lteLevelAntiSym : LTE_Level a b -> LTE_Level b a -> levelIndex a = levelIndex b
+lteLevelAntiSym : {a, b : Level} -> LTE_Level a b -> LTE_Level b a -> levelIndex a = levelIndex b
 lteLevelAntiSym {a = MkLevel fa} {b = MkLevel fb} ab ba =
   finToNatInjective fa fb (lteAntisymmetric ab ba)
   where
@@ -226,20 +256,40 @@ data Feature : Type where
   ||| L10: Linear/QTT usage
   LinearUsage       : Feature
 
+||| The feature newly introduced at 0-indexed level k (k = 0..9).
+||| Total on all of Nat: indices >= 10 return WellFormedAST, a value never
+||| consulted through the Fin 10 interface below — it exists only to keep
+||| the cumulative definition total.
+public export
+newFeatureAt : Nat -> Feature
+newFeatureAt 0 = WellFormedAST
+newFeatureAt 1 = SchemaBinding
+newFeatureAt 2 = TypeUnification
+newFeatureAt 3 = NullSafety
+newFeatureAt 4 = RefinementPreds
+newFeatureAt 5 = ResultTypes
+newFeatureAt 6 = Cardinality
+newFeatureAt 7 = EffectTracking
+newFeatureAt 8 = SessionTypes
+newFeatureAt 9 = LinearUsage
+newFeatureAt _ = WellFormedAST
+
+||| Cumulative feature list over Nat indices: level k+1 is level k plus
+||| exactly one new feature. Defined RECURSIVELY (2026-07-21; previously a
+||| 10-literal table) so that monotonicity is provable by induction rather
+||| than enumerated — or, as before, left as a hole.
+public export
+featN : Nat -> List Feature
+featN Z = [WellFormedAST]
+featN (S k) = featN k ++ [newFeatureAt (S k)]
+
 ||| The features available at a given level index (0-indexed).
-||| Level n includes all features 0..n.
+||| Level n includes all features 0..n. Same values as the previous
+||| literal table (featN 1 reduces to [WellFormedAST, SchemaBinding], and
+||| so on) — the featureCountCorrect cases below still hold by Refl.
 public export
 featuresAtLevel : Fin 10 -> List Feature
-featuresAtLevel FZ = [WellFormedAST]
-featuresAtLevel (FS FZ) = WellFormedAST :: [SchemaBinding]
-featuresAtLevel (FS (FS FZ)) = WellFormedAST :: SchemaBinding :: [TypeUnification]
-featuresAtLevel (FS (FS (FS FZ))) = WellFormedAST :: SchemaBinding :: TypeUnification :: [NullSafety]
-featuresAtLevel (FS (FS (FS (FS FZ)))) = WellFormedAST :: SchemaBinding :: TypeUnification :: NullSafety :: [RefinementPreds]
-featuresAtLevel (FS (FS (FS (FS (FS FZ))))) = WellFormedAST :: SchemaBinding :: TypeUnification :: NullSafety :: RefinementPreds :: [ResultTypes]
-featuresAtLevel (FS (FS (FS (FS (FS (FS FZ)))))) = WellFormedAST :: SchemaBinding :: TypeUnification :: NullSafety :: RefinementPreds :: ResultTypes :: [Cardinality]
-featuresAtLevel (FS (FS (FS (FS (FS (FS (FS FZ))))))) = WellFormedAST :: SchemaBinding :: TypeUnification :: NullSafety :: RefinementPreds :: ResultTypes :: Cardinality :: [EffectTracking]
-featuresAtLevel (FS (FS (FS (FS (FS (FS (FS (FS FZ)))))))) = WellFormedAST :: SchemaBinding :: TypeUnification :: NullSafety :: RefinementPreds :: ResultTypes :: Cardinality :: EffectTracking :: [SessionTypes]
-featuresAtLevel (FS (FS (FS (FS (FS (FS (FS (FS (FS FZ))))))))) = WellFormedAST :: SchemaBinding :: TypeUnification :: NullSafety :: RefinementPreds :: ResultTypes :: Cardinality :: EffectTracking :: SessionTypes :: [LinearUsage]
+featuresAtLevel f = featN (finToNat f)
 
 ||| Feature count at each level is exactly (level index + 1).
 ||| This confirms the cumulative structure: each level adds exactly one feature.
@@ -272,41 +322,72 @@ data SubsetOf : List Feature -> List Feature -> Type where
   EmptySubset : SubsetOf [] ys
   ConsSubset  : FeatureIn f ys -> SubsetOf fs ys -> SubsetOf (f :: fs) ys
 
+||| Widening: a subset of ys is a subset of y :: ys.
+public export
+subsetWiden : SubsetOf xs ys -> SubsetOf xs (y :: ys)
+subsetWiden EmptySubset = EmptySubset
+subsetWiden (ConsSubset i rest) = ConsSubset (FeatureThere i) (subsetWiden rest)
+
+||| Subset inclusion is reflexive.
+public export
+subsetRefl : (xs : List Feature) -> SubsetOf xs xs
+subsetRefl [] = EmptySubset
+subsetRefl (x :: xs) = ConsSubset FeatureHere (subsetWiden (subsetRefl xs))
+
+||| Membership transports along subset inclusion.
+public export
+featureInSubset : FeatureIn f ys -> SubsetOf ys zs -> FeatureIn f zs
+featureInSubset FeatureHere (ConsSubset i _) = i
+featureInSubset (FeatureThere x) (ConsSubset _ rest) = featureInSubset x rest
+
+||| Subset inclusion is transitive.
+public export
+subsetTrans : SubsetOf xs ys -> SubsetOf ys zs -> SubsetOf xs zs
+subsetTrans EmptySubset _ = EmptySubset
+subsetTrans (ConsSubset i rest) yz =
+  ConsSubset (featureInSubset i yz) (subsetTrans rest yz)
+
+||| A list is a subset of itself extended on the right.
+public export
+subsetAppendRight : (xs, ys : List Feature) -> SubsetOf xs (xs ++ ys)
+subsetAppendRight [] ys = EmptySubset
+subsetAppendRight (x :: xs) ys =
+  ConsSubset FeatureHere (subsetWiden (subsetAppendRight xs ys))
+
+||| Split LTE a (S k) into LTE a k or a = S k.
+lteSplit : (a, k : Nat) -> LTE a (S k) -> Either (LTE a k) (a = S k)
+lteSplit Z k LTEZero = Left LTEZero
+lteSplit (S Z) Z (LTESucc LTEZero) = Right Refl
+lteSplit (S (S j)) Z (LTESucc p) = absurd p
+lteSplit (S j) (S k) (LTESucc p) = case lteSplit j k p of
+  Left q => Left (LTESucc q)
+  Right Refl => Right Refl
+
+||| Monotonicity over the cumulative Nat-indexed lists — the inductive
+||| heart of the theorem, replacing the former `?featureMonoGeneral` hole
+||| (which idris2 --check accepted silently; only the L1 case had been
+||| proven before 2026-07-21).
+public export
+featNMono : (a, b : Nat) -> LTE a b -> SubsetOf (featN a) (featN b)
+featNMono Z Z LTEZero = subsetRefl (featN Z)
+featNMono (S j) Z prf = absurd prf
+featNMono a (S k) prf = case lteSplit a k prf of
+  Left q => subsetTrans (featNMono a k q)
+                        (subsetAppendRight (featN k) [newFeatureAt (S k)])
+  Right eq => rewrite eq in subsetRefl (featN (S k))
+
 ||| Higher levels have strictly more features.
 ||| If m <= n then features(m) is a subset of features(n).
 |||
 ||| This is the feature-set formulation of level monotonicity.
 ||| It implies that any type check that passes at level m will also
 ||| pass at level n >= m, since level n performs all checks that m does
-||| plus additional ones.
+||| plus additional ones. Now fully proven as a corollary of featNMono.
 public export
 featureMonotonicity : (m : Fin 10) -> (n : Fin 10)
                    -> LTE (finToNat m) (finToNat n)
                    -> SubsetOf (featuresAtLevel m) (featuresAtLevel n)
-featureMonotonicity FZ n _ = ConsSubset (wellFormedAtAll n) EmptySubset
-  where
-    wellFormedAtAll : (k : Fin 10) -> FeatureIn WellFormedAST (featuresAtLevel k)
-    wellFormedAtAll FZ = FeatureHere
-    wellFormedAtAll (FS FZ) = FeatureHere
-    wellFormedAtAll (FS (FS FZ)) = FeatureHere
-    wellFormedAtAll (FS (FS (FS FZ))) = FeatureHere
-    wellFormedAtAll (FS (FS (FS (FS FZ)))) = FeatureHere
-    wellFormedAtAll (FS (FS (FS (FS (FS FZ))))) = FeatureHere
-    wellFormedAtAll (FS (FS (FS (FS (FS (FS FZ)))))) = FeatureHere
-    wellFormedAtAll (FS (FS (FS (FS (FS (FS (FS FZ))))))) = FeatureHere
-    wellFormedAtAll (FS (FS (FS (FS (FS (FS (FS (FS FZ)))))))) = FeatureHere
-    wellFormedAtAll (FS (FS (FS (FS (FS (FS (FS (FS (FS FZ))))))))) = FeatureHere
-featureMonotonicity m m' prf = ?featureMonoGeneral
-  -- The general case requires an inductive argument over all level pairs.
-  -- The structure is: for each feature f in featuresAtLevel m, show f is
-  -- in featuresAtLevel n. This follows from the cumulative construction
-  -- of featuresAtLevel, where each level's list is a prefix-extension
-  -- of the previous level's list.
-  --
-  -- The L1 base case above demonstrates the pattern. A full enumeration
-  -- for all 10 levels is mechanical but verbose (100 cases). The key
-  -- insight is that featuresAtLevel is defined cumulatively — each level
-  -- prepends all previous features.
+featureMonotonicity m n prf = featNMono (finToNat m) (finToNat n) prf
 
 -- ============================================================================
 -- No Downgrade Theorem

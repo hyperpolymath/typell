@@ -6,7 +6,7 @@
 
 == Overview
 
-TypeLL is the unified type system verification kernel for the hyperpolymath ecosystem. It is to PanLL what LLVM is to Clang: the formal verification substrate that multiple language frontends compile _types_ into. TypeLL is an *open-ended progressive* type safety framework: it works through increasingly strong type properties with no fixed upper bound. New levels are added as the theory demands. The initial progression (L1-L10) is defined below and used by VCL-total, 007, Kategoria, PanLL, and the nextgen-languages suite; this is a starting point, not a ceiling.
+TypeLL is the unified type system verification kernel for the hyperpolymath ecosystem. It is to PanLL what LLVM is to Clang: the formal verification substrate that multiple language frontends compile _types_ into. TypeLL is an *open-ended progressive* type safety framework: it works through increasingly strong type properties with no fixed upper bound. New levels are added as the theory demands. The initial progression (L1-L10) is defined below and used by VCL-total, 007, PanLL, and the nextgen-languages suite; this is a starting point, not a ceiling. (Correction 2026-07-27: Kategoria does NOT use this progression — its L1-L10 are language-FEATURE levels, a different hierarchy that happens to share the numbering. The mapping between the two is enablement, not identity: see docs/KATEGORIA-BRIDGE.adoc.)
 
 == Current State (2026-03-29)
 
@@ -115,7 +115,11 @@ new levels are added as the type theory demands.  L1-L10 is a starting point, no
 * **007** — Agent meta-language type system (tropical types, Five Facets);
   Isabelle foundation complete in `tropical-resource-typing` (2026-04-11):
   star equation, Floyd-Warshall, least prefixpoint, CNO — all proved, zero sorry.
-* **Kategoria** — Category theory verification; Route alpha achieved L9 (session types via Brady indexed monad);
+* **Kategoria** — The Type Safety Challenge (its OWN feature-level L1-L10
+  hierarchy; route α has 9/10 verified in Idris 2, L10 cubical documented
+  as its wall). Bridged 2026-07-21: kategoria's levels run here as
+  `crates/typell-core/tests/kategoria_conformance.rs` and its proof
+  discipline became this repo's Proof Gate — see docs/KATEGORIA-BRIDGE.adoc;
   `research/tropical/` research prototype added referencing `tropical-resource-typing` proofs.
 * **PanLL** — Cross-panel type intelligence (TypeLLService + TypeLLEngine in src/core/)
 * **typed-wasm** — TypeLL progressive type safety applied to WASM memory (current application: L1-L10), multi-module convergence infrastructure for AffineScript + Ephapax

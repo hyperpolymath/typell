@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: MPL-2.0
+# Proof Gate — type-checks the Idris 2 ABI proof modules on every push
+# and PR. Pattern imported from kategoria.
+#
+# Until 2026-07-21 these modules had NEVER been run through idris2:
+# 5 of 6 failed --check (and one carried a silent hole). The gate
+# hard-fails when the prover is missing (scripts/check-idris2-proofs.sh
+# refuses to skip) and rejects postulate/believe_me/%hint/holes in the
+# pass-required set. Layout.idr is quarantined — see PROOF-STATUS.adoc.
+#
+# Verified locally under Idris 2 0.7.0 (system) and 0.8.0 (nixpkgs):
+# 5/5 required modules PASS.
+name: Proof Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  idris2-proofs:
+    name: idris2 --check (ABI proof modules)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: cachix/install-nix-action@a49548c11d9846ad46ecc0115273879b045f001c # v31.10.7
+
+      - name: Run proof gate
+        run: nix shell nixpkgs#idris2 -c ./scripts/check-idris2-proofs.sh
