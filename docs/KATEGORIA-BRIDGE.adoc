@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
+= The Kategoria Bridge — typell side
+:toc:
+
+*Companion to kategoria's `routes/delta-aggregate/TYPELL-BRIDGE.adoc`.
+Registered 2026-07-21; typell-side artefacts landed with the
+`feat/kategoria-conformance` change.*
+
+== The numbering collision (read first)
+
+https://github.com/hyperpolymath/kategoria[Kategoria] and typell BOTH
+number a hierarchy L1–L10, but they measure different things:
+
+- *Kategoria's levels are language FEATURES*: L1 BasicTypes, L2 ADTs,
+  L3 Polymorphism, L4 TypeClasses, L5 GADTs, L6 DependentTypes,
+  L7 LinearTypes, L8 Refinement, L9 SessionTypes, L10 CubicalTypes —
+  each demonstrated by a verified Idris 2 module (route α, 13/13 pass
+  `idris2 --check`, no postulates).
+- *Typell's levels are safety PROPERTIES* (`src/abi/LevelMonotonicity.idr`):
+  L1 Parse, L2 Schema-binding, L3 Type-compatible ops, L4 Null,
+  L5 Injection-proof, L6 Result-type, L7 Cardinality, L8 Effect-tracking,
+  L9 Temporal, L10 Linearity.
+
+Earlier revisions of this repo's ROADMAP claimed kategoria "uses" this
+progression — false, now corrected. The real relationship is
+*enablement*: a kategoria feature-level is the mechanism that makes one
+or more typell property-levels enforceable (kat-L8 Refinement → ty-L5
+Injection-proof; kat-L7 Linear → ty-L10 Linearity; only L9 aligns by
+coincidence).
+
+== What typell receives from kategoria
+
+1. *Executable conformance*:
+   `crates/typell-core/tests/kategoria_conformance.rs` — one section per
+   kategoria level, accept/reject pairs mirroring the Idris modules.
+   Measured 2026-07-27: **25 passed, 0 failed, 3 ignored** — the ignored
+   tests are honest gap markers for kat-L4 (type classes), kat-L5
+   (GADTs), kat-L10 (cubical), each `#[ignore]`d with the reason and
+   panicking if force-run. Never silent passes.
+2. *Proof discipline*: the hard-fail `idris2 --check` gate
+   (`scripts/check-idris2-proofs.sh`, Proof Gate workflow) and
+   `PROOF-STATUS.adoc`. Applying it immediately found that 5 of 6 ABI
+   proof modules had never checked, one theorem hid behind a silent
+   hole, and `subst` modelled beta-reduction with the wrong de Bruijn
+   variable. All fixed; see PROOF-STATUS.adoc's History section.
+
+== What kategoria receives from typell
+
+Typell is the first live *aggregate-style* engine kategoria can measure
+route δ ideas against: one Rust kernel unifying HM inference + Pi/Sigma
+and dependent array lengths + QTT/linear + row-polymorphic effects +
+binary sessions + refinement predicates (decidable fragment) +
+dimensional analysis, exercised by 422 workspace tests. Its measured
+gaps — type classes, GADTs, sum-type exhaustiveness, multiparty
+sessions, cubical — are exactly the deltas a full route δ must bridge
+externally (F*/Liquid Haskell, Scribble, Agda `--cubical`).
+
+Typell is NOT route δ as prescribed (it aggregates mechanisms inside one
+kernel, not provers across an ABI), and neither project depends on the
+other: the bridge is conformance + discipline, not linkage.

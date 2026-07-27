@@ -1,0 +1,88 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk>
+= Proof Status — typell Idris 2 ABI modules
+:toc:
+
+*Measured 2026-07-27 under Idris 2 0.7.0 (system) and 0.8.0 (nixpkgs).
+Format and discipline imported from kategoria's PROOF-STATUS.adoc: this
+file records what `idris2 --check` actually says, not what comments
+claim.*
+
+== Verified modules (5 / 5 required PASS)
+
+[cols="2,1,4",options="header"]
+|===
+| Module (src/abi/) | Status | What it proves
+
+| Soundness.idr | PASS
+| Progress + preservation + type safety for the STLC core modelling
+  check.rs/infer.rs/unify.rs. Renaming and PARALLEL-substitution lemmas
+  fully proven — no holes.
+
+| InferenceSoundness.idr | PASS
+| Occurs-check/substitution lemmas, unifier soundness statements,
+  substitution idempotence for the inference model of unify.rs.
+
+| LevelMonotonicity.idr | PASS
+| The safety-level hierarchy (initial set L1–L10) is monotone:
+  `featNMono`/`featureMonotonicity` — higher levels' feature sets
+  subsume lower levels' — now proven for ALL level pairs.
+
+| Types.idr | PASS
+| ABI type definitions; decidable equality for Result; So-guarded
+  non-null handles; computable C-type sizes over a closed universe with
+  definitional layout lemmas.
+
+| Foreign.idr | PASS
+| FFI surface declarations matching ffi/zig.
+|===
+
+Gate: `just proof-check` → `scripts/check-idris2-proofs.sh` (also run in
+CI by `.github/workflows/proof-gate.yml`). The gate HARD-FAILS when
+idris2 is absent and rejects `postulate` / `believe_me` / `assert_total`
+/ `%hint` / holes (`?name`) outside comments in the required modules.
+
+== Quarantined (1)
+
+`Layout.idr` — RSR-template scaffolding, excluded from the pass-required
+set and reported by the gate on every run. Why: three named holes
+(`?fieldsAlignedProof`, `?exampleFieldsAligned`, `?offsetInBoundsProof`),
+a divisibility "proof" attempted via `Refl` on abstract arithmetic
+(unprovable as stated), `verifyAllPlatforms` returning `Right ()` while
+checking nothing, and `Nat` subtraction/`Divides` machinery that does not
+compile. No module imports it. Disposition (owner): rewrite honestly
+against real mod/div lemmas, or delete.
+
+== History — read this before trusting old claims
+
+Until 2026-07-21 these modules had NEVER been run through idris2:
+
+- 5 of 6 failed `--check` outright. `Soundness.idr` referenced `Step`
+  before its definition, returned erased implicits relevantly in its
+  canonical-forms lemmas, hid two NAMED HOLES in the substitution lemma
+  behind a comment insisting they were "not believe_me or postulate" —
+  and its `subst` function was semantically WRONG under binders
+  (substituted the lambda's own bound variable; the de Bruijn bug is why
+  the original proof could not be completed). `LevelMonotonicity.idr`
+  had a `Fin 11`-vs-`Fin 10` off-by-one in the `SafeUp` constructor of
+  the monotonicity model itself, a circular (uninhabitable) `SafeL1`
+  base case, and stdlib lemma names that no longer exist.
+- The one thing `--check` DID accept silently was a hole:
+  `?featureMonoGeneral` — the central feature-subsumption theorem was
+  only proven for L1. Holes pass `idris2 --check`; that is exactly why
+  the gate scans for them.
+- `applySubst` in InferenceSoundness.idr recursed through the
+  substitution's range and was non-terminating on cyclic substitutions;
+  it is now single-pass, modelling idempotent (MGU-form) substitutions,
+  with the invariant documented.
+
+== Reproduce
+
+[source,sh]
+----
+just proof-check
+# or directly:
+./scripts/check-idris2-proofs.sh
+# or with the same prover CI uses:
+nix shell nixpkgs#idris2 -c ./scripts/check-idris2-proofs.sh
+----

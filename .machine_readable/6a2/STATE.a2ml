@@ -6,7 +6,7 @@
 [metadata]
 project = "typell"
 version = "0.1.0-alpha"
-last-updated = "2026-03-14"
+last-updated = "2026-07-27"
 status = "active"
 
 [project-context]
@@ -23,12 +23,23 @@ maturity = "early-alpha"
 crates = 14
 kernel-modules = 11
 bridge-crates = 13
-total-tests = 221
-kernel-tests = 87
+total-tests = 447   # 422 workspace + 25 kategoria conformance (2026-07-27, cargo test --workspace)
+kernel-tests = 225
 bridge-tests = 134
-idris2-abi-files = 3
+idris2-abi-files = 6
 zig-ffi-files = 1
 languages = ["Rust", "Idris2", "Zig"]
+
+[verification]
+# Enforced by scripts/check-idris2-proofs.sh (Proof Gate workflow) —
+# hard-fails when idris2 is absent; rejects postulate/believe_me/%hint/holes.
+# History: before 2026-07-21 the ABI proof modules had NEVER been checked
+# (5/6 failed; one silent hole). See PROOF-STATUS.adoc.
+idris2-proof-modules-passing = 5
+idris2-proof-modules-quarantined = ["Layout.idr"]
+provers-verified = ["Idris 2 0.7.0", "Idris 2 0.8.0 (nixpkgs)"]
+kategoria-conformance = "crates/typell-core/tests/kategoria_conformance.rs: 25 pass, 3 honest-ignore (type classes, GADTs, cubical absent)"
+last-verified = "2026-07-27"
 
 [kernel-modules]
 modules = [

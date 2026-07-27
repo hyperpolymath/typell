@@ -101,8 +101,16 @@ lookupSubst n [] = Nothing
 lookupSubst n ((m, ty) :: rest) =
   if n == m then Just ty else lookupSubst n rest
 
-||| Apply a substitution to a type.
-||| Models Substitution::apply in unify.rs.
+||| Apply a substitution to a type — SINGLE PASS on variables.
+||| Models Substitution::apply in unify.rs for substitutions in resolved
+||| (idempotent) form, which is what Robinson unification produces.
+|||
+||| Honesty note (2026-07-21): the previous definition re-applied the
+||| substitution to the looked-up type (`Just ty => applySubst s ty`),
+||| which does not terminate on cyclic substitutions like [(0, IVar 0)]
+||| — the totality checker rightly rejected it. In the Rust kernel the
+||| occurs check outlaws such cycles; Idris cannot see that invariant,
+||| so the model works with idempotent substitutions instead.
 public export
 applySubst : Subst -> InfTy -> InfTy
 applySubst s IBool = IBool
@@ -112,7 +120,7 @@ applySubst s (IArrow a b) = IArrow (applySubst s a) (applySubst s b)
 applySubst s (IVar n) =
   case lookupSubst n s of
     Nothing => IVar n
-    Just ty => applySubst s ty
+    Just ty => ty
 
 ||| Compose two substitutions.
 ||| applySubst (compose s1 s2) t = applySubst s1 (applySubst s2 t)
@@ -145,6 +153,20 @@ occurs n IUnit = False
 occurs n (IArrow a b) = occurs n a || occurs n b
 occurs n (IVar m) = n == m
 
+||| Nat boolean equality is reflexive. Needed because (n == n) does not
+||| reduce to True for an abstract n — several proofs below rewrite by it.
+eqRefl : (k : Nat) -> (k == k) = True
+eqRefl Z = Refl
+eqRefl (S k) = eqRefl k
+
+||| Distinct Nats are boolean-unequal. Needed where a lookup is stuck on
+||| (m == n) with only a propositional disequality in hand.
+neqEqFalse : (a, b : Nat) -> Not (a = b) -> (a == b) = False
+neqEqFalse Z Z contra = absurd (contra Refl)
+neqEqFalse Z (S _) _ = Refl
+neqEqFalse (S _) Z _ = Refl
+neqEqFalse (S a) (S b) contra = neqEqFalse a b (\p => contra (cong S p))
+
 ||| If a variable does not occur in a type, substituting for that variable
 ||| does not change the type.
 public export
@@ -164,11 +186,12 @@ noOccursNoChange n (IArrow a b) s prf =
     orFalseImpliesBothFalse False False Refl = (Refl, Refl)
 noOccursNoChange n (IVar m) s prf with (decEq n m)
   noOccursNoChange n (IVar n) s prf | (Yes Refl) =
-    absurd (trueNotFalse (sym prf))
+    absurd (trueNotFalse (trans (sym (eqRefl n)) prf))
     where
       trueNotFalse : True = False -> Void
       trueNotFalse Refl impossible
-  noOccursNoChange n (IVar m) s prf | (No _) = Refl
+  noOccursNoChange n (IVar m) s prf | (No contra) =
+    rewrite neqEqFalse m n (\p => contra (sym p)) in Refl
 
 -- ============================================================================
 -- Unification Result
@@ -195,8 +218,7 @@ IsUnifier s t1 t2 = applySubst s t1 = applySubst s t2
 ||| Unification for identical types produces the empty substitution.
 public export
 unifyRefl : (ty : InfTy) -> IsUnifier [] ty ty
-unifyRefl ty = rewrite emptySubstId ty in
-               rewrite emptySubstId ty in Refl
+unifyRefl ty = rewrite emptySubstId ty in Refl
 
 ||| Unifying a variable with a type (no occurs) produces a valid substitution.
 public export
@@ -204,6 +226,7 @@ unifyVarLeft : (n : Nat) -> (ty : InfTy)
             -> occurs n ty = False
             -> IsUnifier [(n, ty)] (IVar n) ty
 unifyVarLeft n ty noOcc =
+  rewrite eqRefl n in
   rewrite noOccursNoChange n ty ty noOcc in Refl
 
 ||| Unifying two arrow types decomposes to unifying their components.
@@ -283,7 +306,7 @@ resolvedErases (ResArrow ra rb) =
 public export
 InferenceSoundnessStatement : Type
 InferenceSoundnessStatement =
-  (ctx : Ctx n) -> (t : Term n) -> (infTy : InfTy)
+  {n : Nat} -> (ctx : Ctx n) -> (t : Term n) -> (infTy : InfTy)
   -> (resolved : FullyResolved infTy)
   -> (coreTy : Ty)
   -> (erasePrf : eraseTy infTy = Just coreTy)
@@ -310,6 +333,5 @@ substIdempotent s (IArrow a b) idem =
   rewrite substIdempotent s a idem in
   rewrite substIdempotent s b idem in Refl
 substIdempotent s (IVar n) idem with (lookupSubst n s) proof prf
-  substIdempotent s (IVar n) idem | Nothing = prf
-  substIdempotent s (IVar n) idem | (Just ty) =
-    rewrite idem n ty (sym prf) in Refl
+  substIdempotent s (IVar n) idem | Nothing = rewrite prf in Refl
+  substIdempotent s (IVar n) idem | (Just ty) = idem n ty prf

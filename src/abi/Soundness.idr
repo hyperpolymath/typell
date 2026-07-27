@@ -132,17 +132,17 @@ data IsValue : Term n -> Type where
   VUnit : IsValue UnitV
   VLam  : IsValue (Lam ty body)
 
-||| Values are not stuck — they are a normal form.
-public export
-valueDoesNotStep : IsValue t -> Not (Step t t')
-valueDoesNotStep VBool step = case step of {}
-valueDoesNotStep VInt step = case step of {}
-valueDoesNotStep VUnit step = case step of {}
-valueDoesNotStep VLam step = case step of {}
-
 -- ============================================================================
 -- Substitution
 -- ============================================================================
+
+||| Lift a renaming under one binder: index 0 maps to itself, the rest
+||| are shifted through the underlying renaming. Top-level (not where-bound)
+||| so the renaming lemma below can reason about it.
+public export
+liftRen : (Fin n -> Fin m) -> Fin (S n) -> Fin (S m)
+liftRen g FZ = FZ
+liftRen g (FS k) = FS (g k)
 
 ||| Rename variables in a term (shift de Bruijn indices).
 public export
@@ -151,31 +151,53 @@ rename f (Var i) = Var (f i)
 rename f (BLit b) = BLit b
 rename f (ILit i) = ILit i
 rename f UnitV = UnitV
-rename f (Lam ty body) = Lam ty (rename (liftFin f) body)
-  where
-    liftFin : (Fin n -> Fin m) -> Fin (S n) -> Fin (S m)
-    liftFin g FZ = FZ
-    liftFin g (FS k) = FS (g k)
+rename f (Lam ty body) = Lam ty (rename (liftRen f) body)
 rename f (App func arg) = App (rename f func) (rename f arg)
 rename f (Ite c t e) = Ite (rename f c) (rename f t) (rename f e)
-rename f (Let rhs body) = Let (rename f rhs) (rename (liftFin f) body)
-  where
-    liftFin : (Fin n -> Fin m) -> Fin (S n) -> Fin (S m)
-    liftFin g FZ = FZ
-    liftFin g (FS k) = FS (g k)
+rename f (Let rhs body) = Let (rename f rhs) (rename (liftRen f) body)
+
+||| A parallel substitution: a term of context m for every variable of
+||| context n.
+public export
+Subst : Nat -> Nat -> Type
+Subst n m = Fin n -> Term m
+
+||| Lift a substitution under one binder: the bound variable maps to
+||| itself, everything else is substituted then shifted.
+public export
+extsSub : Subst n m -> Subst (S n) (S m)
+extsSub sig FZ = Var FZ
+extsSub sig (FS i) = rename FS (sig i)
+
+||| Apply a parallel substitution to a term.
+public export
+applySub : Subst n m -> Term n -> Term m
+applySub sig (Var i) = sig i
+applySub sig (BLit b) = BLit b
+applySub sig (ILit i) = ILit i
+applySub sig UnitV = UnitV
+applySub sig (Lam ty body) = Lam ty (applySub (extsSub sig) body)
+applySub sig (App func arg) = App (applySub sig func) (applySub sig arg)
+applySub sig (Ite c t e) = Ite (applySub sig c) (applySub sig t) (applySub sig e)
+applySub sig (Let rhs body) = Let (applySub sig rhs) (applySub (extsSub sig) body)
+
+||| The single substitution [s, Var 0, Var 1, ...].
+public export
+singleSub : Term n -> Subst (S n) n
+singleSub s FZ = s
+singleSub s (FS i) = Var i
 
 ||| Substitution: replace the outermost bound variable (index 0) with a term.
+|||
+||| NOTE (2026-07-21): the previous direct recursive definition was WRONG
+||| under binders — `subst s (Lam ty body) = Lam ty (subst (rename FS s) body)`
+||| substituted the lambda's OWN bound variable (index 0 of the body)
+||| instead of the shifted target variable. The typing mismatch this caused
+||| in substitutionLemma's T_Lam case is what stalled the original proof
+||| into holes. Parallel substitution is the standard repair.
 public export
 subst : Term n -> Term (S n) -> Term n
-subst s (Var FZ) = s
-subst s (Var (FS i)) = Var i
-subst s (BLit b) = BLit b
-subst s (ILit i) = ILit i
-subst s UnitV = UnitV
-subst s (Lam ty body) = Lam ty (subst (rename FS s) body)
-subst s (App func arg) = App (subst s func) (subst s arg)
-subst s (Ite c t e) = Ite (subst s c) (subst s t) (subst s e)
-subst s (Let rhs body) = Let (subst s rhs) (subst (rename FS s) body)
+subst s body = applySub (singleSub s) body
 
 -- ============================================================================
 -- Small-Step Operational Semantics
@@ -201,6 +223,15 @@ data Step : Term n -> Term n -> Type where
   SLetRhs   : Step rhs rhs' -> Step (Let rhs body) (Let rhs' body)
   ||| Substitute value into let body
   SLetBeta  : IsValue rhs -> Step (Let rhs body) (subst rhs body)
+
+||| Values are not stuck — they are a normal form.
+||| (Defined after Step: Idris 2 requires definition before use.)
+public export
+valueDoesNotStep : IsValue t -> Not (Step t t')
+valueDoesNotStep VBool step = case step of {}
+valueDoesNotStep VInt step = case step of {}
+valueDoesNotStep VUnit step = case step of {}
+valueDoesNotStep VLam step = case step of {}
 
 -- ============================================================================
 -- Typing Judgement
@@ -248,25 +279,29 @@ data HasTy : Ctx n -> Term n -> Ty -> Type where
 -- ============================================================================
 
 ||| If a value has type Bool, it is a boolean literal.
+||| The term is an explicit (runtime-relevant) argument: the returned
+||| witness must be relevant, so it cannot come from an erased implicit.
 public export
-canonicalBool : HasTy [] t TBool -> IsValue t -> (b : Bool ** t = BLit b)
-canonicalBool T_Bool VBool = (_ ** Refl)
+canonicalBool : (t : Term 0) -> HasTy [] t TBool -> IsValue t
+             -> (b : Bool ** t = BLit b)
+canonicalBool (BLit b) T_Bool VBool = (b ** Refl)
 
 ||| If a value has type Int, it is an integer literal.
 public export
-canonicalInt : HasTy [] t TInt -> IsValue t -> (i : Integer ** t = ILit i)
-canonicalInt T_Int VInt = (_ ** Refl)
+canonicalInt : (t : Term 0) -> HasTy [] t TInt -> IsValue t
+            -> (i : Integer ** t = ILit i)
+canonicalInt (ILit i) T_Int VInt = (i ** Refl)
 
 ||| If a value has type Unit, it is the unit value.
 public export
-canonicalUnit : HasTy [] t TUnit -> IsValue t -> t = UnitV
-canonicalUnit T_Unit VUnit = Refl
+canonicalUnit : (t : Term 0) -> HasTy [] t TUnit -> IsValue t -> t = UnitV
+canonicalUnit UnitV T_Unit VUnit = Refl
 
 ||| If a value has arrow type, it is a lambda.
 public export
-canonicalArrow : HasTy [] t (TArrow a b) -> IsValue t
+canonicalArrow : (t : Term 0) -> HasTy [] t (TArrow a b) -> IsValue t
               -> (body : Term 1 ** t = Lam a body)
-canonicalArrow (T_Lam _) VLam = (_ ** Refl)
+canonicalArrow (Lam a body) (T_Lam _) VLam = (body ** Refl)
 
 -- ============================================================================
 -- Progress Theorem
@@ -282,44 +317,46 @@ public export
 data Progress : Term 0 -> Type where
   ||| The term is already a value
   Done : IsValue t -> Progress t
-  ||| The term can take a step
-  CanStep : Step t t' -> Progress t
+  ||| The term can take a step. The target is a declared (relevant)
+  ||| implicit so typeSafety can hand it to the no-step assumption.
+  CanStep : {t' : Term 0} -> Step t t' -> Progress t
 
 ||| Progress theorem: every closed well-typed term either is a value
 ||| or can take an evaluation step.
 |||
 ||| Proof by induction on the typing derivation.
 public export
-progress : HasTy [] t ty -> Progress t
-progress (T_Var hasType) = absurd (noVarInEmpty hasType)
-  where
-    noVarInEmpty : HasType [] i ty -> Void
-    noVarInEmpty Here impossible
-    noVarInEmpty (There _) impossible
-progress T_Bool = Done VBool
-progress T_Int = Done VInt
-progress T_Unit = Done VUnit
-progress (T_Lam _) = Done VLam
-progress (T_App funcTy argTy) with (progress funcTy)
-  progress (T_App funcTy argTy) | (CanStep step) = CanStep (SAppFunc step)
-  progress (T_App funcTy argTy) | (Done funcVal) with (progress argTy)
-    progress (T_App funcTy argTy) | (Done funcVal) | (CanStep step) =
+progress : (t : Term 0) -> HasTy [] t ty -> Progress t
+progress (Var i) (T_Var hasType) = absurd i
+progress (BLit b) T_Bool = Done VBool
+progress (ILit i) T_Int = Done VInt
+progress UnitV T_Unit = Done VUnit
+progress (Lam ty body) (T_Lam _) = Done VLam
+progress (App func arg) (T_App funcTy argTy) with (progress func funcTy)
+  progress (App func arg) (T_App funcTy argTy) | (CanStep step) =
+    CanStep (SAppFunc step)
+  progress (App func arg) (T_App funcTy argTy) | (Done funcVal)
+    with (progress arg argTy)
+    progress (App func arg) (T_App funcTy argTy) | (Done funcVal) | (CanStep step) =
       CanStep (SAppArg funcVal step)
-    progress (T_App funcTy argTy) | (Done funcVal) | (Done argVal) =
-      let (_ ** prf) = canonicalArrow funcTy funcVal
+    progress (App func arg) (T_App funcTy argTy) | (Done funcVal) | (Done argVal) =
+      let (_ ** prf) = canonicalArrow func funcTy funcVal
       in case prf of
            Refl => CanStep (SBeta argVal)
-progress (T_Ite condTy thnTy elsTy) with (progress condTy)
-  progress (T_Ite condTy thnTy elsTy) | (CanStep step) = CanStep (SIteCond step)
-  progress (T_Ite condTy thnTy elsTy) | (Done condVal) =
-    let (b ** prf) = canonicalBool condTy condVal
+progress (Ite cond thn els) (T_Ite condTy thnTy elsTy) with (progress cond condTy)
+  progress (Ite cond thn els) (T_Ite condTy thnTy elsTy) | (CanStep step) =
+    CanStep (SIteCond step)
+  progress (Ite cond thn els) (T_Ite condTy thnTy elsTy) | (Done condVal) =
+    let (b ** prf) = canonicalBool cond condTy condVal
     in case prf of
          Refl => case b of
            True => CanStep SIteTrue
            False => CanStep SIteFalse
-progress (T_Let rhsTy bodyTy) with (progress rhsTy)
-  progress (T_Let rhsTy bodyTy) | (CanStep step) = CanStep (SLetRhs step)
-  progress (T_Let rhsTy bodyTy) | (Done rhsVal) = CanStep (SLetBeta rhsVal)
+progress (Let rhs body) (T_Let rhsTy bodyTy) with (progress rhs rhsTy)
+  progress (Let rhs body) (T_Let rhsTy bodyTy) | (CanStep step) =
+    CanStep (SLetRhs step)
+  progress (Let rhs body) (T_Let rhsTy bodyTy) | (Done rhsVal) =
+    CanStep (SLetBeta rhsVal)
 
 -- ============================================================================
 -- Weakening and Context Lemmas
@@ -336,45 +373,100 @@ extendHasType (There prev) = There (There prev)
 -- Substitution Lemma
 -- ============================================================================
 
+-- ============================================================================
+-- Renaming Lemma
+-- ============================================================================
+
+||| Renaming preserves typing.
+|||
+||| The first argument is the renaming's typing guarantee: every variable
+||| of ctx maps to a variable of the same type in ctx'. It is stated as an
+||| inline implicit-Pi (with erased indices) rather than a type alias,
+||| which Idris 2 struggles to unfold in pattern positions. At binders the
+||| guarantee is lifted by an inline case-lambda; the constructor patterns
+||| force the erased indices. Proving weakening (`rename FS`) directly by
+||| induction fails at binders — the induction must be over ARBITRARY
+||| well-typed renamings, with weakening as an instance. (This replaces
+||| the two former named holes `?renameTyHole` / `?renameTy'Hole` — the
+||| theorem was never complete before.)
+public export
+renameLemma : {0 f : Fin n -> Fin m}
+           -> ({0 vty : Ty} -> {0 i : Fin n}
+                -> HasType ctx i vty -> HasType ctx' (f i) vty)
+           -> HasTy ctx t ty -> HasTy ctx' (rename f t) ty
+renameLemma ok (T_Var hasType) = T_Var (ok hasType)
+renameLemma ok T_Bool = T_Bool
+renameLemma ok T_Int = T_Int
+renameLemma ok T_Unit = T_Unit
+renameLemma ok (T_Lam bodyTy) =
+  T_Lam (renameLemma (\prf => case prf of
+                                Here => Here
+                                There prev => There (ok prev)) bodyTy)
+renameLemma ok (T_App funcTy argTy) =
+  T_App (renameLemma ok funcTy) (renameLemma ok argTy)
+renameLemma ok (T_Ite condTy thnTy elsTy) =
+  T_Ite (renameLemma ok condTy) (renameLemma ok thnTy) (renameLemma ok elsTy)
+renameLemma ok (T_Let rhsTy bodyTy) =
+  T_Let (renameLemma ok rhsTy)
+        (renameLemma (\prf => case prf of
+                                Here => Here
+                                There prev => There (ok prev)) bodyTy)
+
+||| Weakening: a term keeps its type under a context extension.
+public export
+weakenTy : HasTy ctx s ty -> HasTy (ty'' :: ctx) (rename FS s) ty
+weakenTy prf = renameLemma (\v => There v) prf
+
+-- ============================================================================
+-- Substitution Lemma
+-- ============================================================================
+
+||| Parallel substitution preserves typing.
+|||
+||| The first argument is the substitution's typing guarantee: every
+||| variable of ctx maps to a TERM of the same type in ctx'. Same inline
+||| formulation as renameLemma; at binders the lifted guarantee sends the
+||| bound variable to itself and weakens everything else.
+public export
+applySubLemma : {0 sig : Subst n m}
+             -> ({0 vty : Ty} -> {0 i : Fin n}
+                  -> HasType ctx i vty -> HasTy ctx' (sig i) vty)
+             -> HasTy ctx t ty -> HasTy ctx' (applySub sig t) ty
+applySubLemma ok (T_Var hasType) = ok hasType
+applySubLemma ok T_Bool = T_Bool
+applySubLemma ok T_Int = T_Int
+applySubLemma ok T_Unit = T_Unit
+applySubLemma ok (T_Lam bodyTy) =
+  T_Lam (applySubLemma (\prf => case prf of
+                                  Here => T_Var Here
+                                  There prev => weakenTy (ok prev)) bodyTy)
+applySubLemma ok (T_App funcTy argTy) =
+  T_App (applySubLemma ok funcTy) (applySubLemma ok argTy)
+applySubLemma ok (T_Ite condTy thnTy elsTy) =
+  T_Ite (applySubLemma ok condTy)
+        (applySubLemma ok thnTy)
+        (applySubLemma ok elsTy)
+applySubLemma ok (T_Let rhsTy bodyTy) =
+  T_Let (applySubLemma ok rhsTy)
+        (applySubLemma (\prf => case prf of
+                                  Here => T_Var Here
+                                  There prev => weakenTy (ok prev)) bodyTy)
+
 ||| Substitution preserves typing:
 ||| If  (ty :: ctx) |- body : bodyTy  and  ctx |- s : ty,
 ||| then  ctx |- body[s/0] : bodyTy.
 |||
 ||| This is the key lemma for preservation. It justifies beta-reduction
-||| and let-substitution.
+||| and let-substitution. (Corollary of applySubLemma — completing the
+||| proof that was previously two named holes.)
 public export
 substitutionLemma : HasTy (ty :: ctx) body bodyTy
                  -> HasTy ctx s ty
                  -> HasTy ctx (subst s body) bodyTy
-substitutionLemma (T_Var Here) sTy = sTy
-substitutionLemma (T_Var (There later)) sTy = T_Var (shrinkHasType later)
-  where
-    shrinkHasType : HasType (ty' :: ctx) (FS i) t -> HasType ctx i t
-    shrinkHasType (There x) = x
-substitutionLemma T_Bool sTy = T_Bool
-substitutionLemma T_Int sTy = T_Int
-substitutionLemma T_Unit sTy = T_Unit
-substitutionLemma (T_Lam bodyTy) sTy =
-  T_Lam (substitutionLemma bodyTy (renameTy FS sTy))
-  where
-    ||| Renaming preserves typing.
-    renameTy : {ctx : Ctx n} -> {ctx' : Ctx m}
-            -> (f : Fin n -> Fin m)
-            -> HasTy ctx t ty
-            -> HasTy (paramTy :: ctx) (rename FS t) ty
-    renameTy f tyPrf = ?renameTyHole -- Omitted: renaming lemma is standard
-substitutionLemma (T_App funcTy argTy) sTy =
-  T_App (substitutionLemma funcTy sTy) (substitutionLemma argTy sTy)
-substitutionLemma (T_Ite condTy thnTy elsTy) sTy =
-  T_Ite (substitutionLemma condTy sTy)
-        (substitutionLemma thnTy sTy)
-        (substitutionLemma elsTy sTy)
-substitutionLemma (T_Let rhsTy bodyTy) sTy =
-  T_Let (substitutionLemma rhsTy sTy)
-        (substitutionLemma bodyTy (renameTy' sTy))
-  where
-    renameTy' : HasTy ctx s ty -> HasTy (rhsTy' :: ctx) (rename FS s) ty
-    renameTy' tyPrf = ?renameTy'Hole -- Omitted: same renaming lemma
+substitutionLemma bodyTy sTy =
+  applySubLemma (\prf => case prf of
+                           Here => sTy
+                           There prev => T_Var prev) bodyTy
 
 -- ============================================================================
 -- Preservation Theorem
@@ -422,7 +514,7 @@ Stuck t = (Not (IsValue t), (t' : Term 0) -> Not (Step t t'))
 ||| Type safety: well-typed closed terms never get stuck.
 ||| Direct corollary of progress.
 public export
-typeSafety : HasTy [] t ty -> Not (Stuck t)
-typeSafety tyPrf (notVal, noStep) with (progress tyPrf)
-  typeSafety tyPrf (notVal, noStep) | (Done val) = notVal val
-  typeSafety tyPrf (notVal, noStep) | (CanStep step) = noStep _ step
+typeSafety : (t : Term 0) -> HasTy [] t ty -> Not (Stuck t)
+typeSafety t tyPrf stuck with (progress t tyPrf)
+  typeSafety t tyPrf stuck | (Done val) = fst stuck val
+  typeSafety t tyPrf stuck | (CanStep {t'} step) = snd stuck t' step

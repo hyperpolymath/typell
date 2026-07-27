@@ -28,12 +28,12 @@ use typell_core::types::{
     Dimension, Effect, Predicate, PrimitiveType, Type, TypeDiscipline,
     UnifiedType, UsageQuantifier,
 };
-use typell_vql::bridge::{
+use typell_vcl::bridge::{
     VqlEffectLabel, VqlExtensions, VqlModality, VqlQueryType, VqlSessionProtocol,
     VqlTransactionState, determine_safety_level, vcl_to_typell, vcl_to_unified,
 };
-use typell_vql::levels::SafetyReport;
-use typell_vql::rules;
+use typell_vcl::levels::SafetyReport;
+use typell_vcl::rules;
 
 // ============================================================================
 // Context Parsing
