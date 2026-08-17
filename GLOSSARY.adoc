@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+= Typell — Glossary
+:toc: preamble
+:toc-title: Contents
+:icons: font
+:doctype: article
+
+Cross-reference glossary for link:README.adoc[README.adoc], link:EXPLAINME.adoc[EXPLAINME.adoc], and the Typell wiki.
+
+== Architecture
+
+[[verification-kernel]]
+Verification kernel::
+  Typell's core: the type checker, proof engine, effect tracker, and session manager. Implemented in Rust, specified in Idris 2.
+  *See also:* <<spec-implementation-alignment>>
+
+[[spec-implementation-alignment]]
+Spec-implementation alignment::
+  The obligation that the Rust kernel faithfully implements the Idris 2 formal specification. Not machine-checked; maintained manually via FFI bridge and generated headers.
+
+[[json-rpc-protocol]]
+JSON-RPC verification protocol::
+  The language-agnostic interface through which consumers (PanLL, VS Code, CLI) interact with Typell.
+
+== Type systems
+
+[[qtt]]
+Quantitative Type Theory (QTT)::
+  Idris 2's core theory: dependent types with resource quantities tracked in the type. Generalises linear types (0 or 1 uses) to arbitrary semiring-graded usage.
+
+[[proof-carrying-code]]
+Proof-carrying code::
+  Architecture where compiled code carries cryptographic proof certificates that can be verified independently of the compiler. (Necula, 1998).
+
+[[session-protocol-manager]]
+Session protocol manager::
+  Typell component enforcing session types: connections close, transactions are atomic, handshake order is followed.
+
+== Backends
+
+[[vcl-dt]]
+VCL-dt++::
+  Typell backend for VeriSimDB. Port from ReScript. Target: 8-modality queries, cross-modal proofs, hexad types.
+
+[[gpnl-dt]]
+GPNL-dt++::
+  Typell backend for LithoGlyph. Bridge to Lean 4. Target: knowledge graphs, RATIONALE clause, refinement types.
+
+[[krl-dt]]
+KRL-dt++::
+  Typell backend for QuandleDB. Design from scratch. Target: category-theoretic schema, equality saturation, HoTT equality.
+
+== Technology
+
+[[idris2-specs]]
+Idris 2 specs (`src/abi/`)::
+  The formal specification layer. Types and soundness proofs written in Idris 2, consuming no `believe_me`.
+
+[[rust-kernel]]
+Rust kernel (`src/kernel/`)::
+  The implementation layer. Chosen for performance, memory safety, and Tauri compatibility with PanLL.
+
+[[zig-ffi]]
+Zig FFI (`ffi/zig/`)::
+  The C ABI compatibility layer. Bridges the Idris 2 specs and Rust kernel to external consumers via the hyperpolymath universal standard.
+|===
