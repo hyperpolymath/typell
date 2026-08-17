@@ -1,0 +1,136 @@
+// SPDX-License-Identifier: MPL-2.0
+= Typell — EXPLAINME
+:toc: preamble
+:toc-title: Contents
+:icons: font
+:doctype: article
+
+This file backs every factual claim in link:README.adoc[README.adoc] with code paths and honest caveats. Read it if you are doing due diligence on whether the story matches the code.
+
+== Claim-to-implementation map
+
+=== Typell provides dependent, linear, session, quantitative, effect, and modal type coverage
+
+[quote, README.adoc]
+____
+Dependent types, linear types, session types, QTT, effect systems, modal types, proof-carrying code.
+____
+
+How this is implemented::
+The Idris 2 formal specifications in `link:src/abi/[]` define the type system interfaces and soundness properties. The Rust kernel in `link:src/kernel/[]` implements the bidirectional type checker, proof engine, effect tracker, and session protocol manager.
+
+Caveat::
+**Phase 0 status.** The Idris 2 specs define the *target* type system. The Rust kernel implementation is under active development. Coverage is by design, not by current achievement.
+
+=== Idris 2 specs prove soundness with zero believe_me
+
+[quote, README.adoc]
+____
+Dependent types prove type system soundness. Zero believe_me.
+____
+
+How this is implemented::
+`link:src/abi/[]` contains Idris 2 modules specifying the type system. The `believe_me` count is verified by CI (grep for `believe_me` in `src/abi/`).
+
+Caveat::
+The specs prove soundness of the *type system definition*. They do not prove soundness of the Rust implementation. Alignment between spec and implementation is a manual obligation, mitigated by the FFI bridge and generated C headers.
+
+=== The LLVM analogy: any frontend can consume Typell
+
+[quote, README.adoc]
+____Typell is to PanLL what LLVM is to Clang: the compiler infrastructure that any frontend can consume.____
+
+How this is implemented::
+Typell exposes a JSON-RPC verification protocol (`link:src/kernel/protocol/[]`). PanLL, VS Code extensions, CLI tools, and CI/CD pipelines all consume Typell through this protocol.
+
+Caveat::
+The LLVM analogy is architectural, not operational. LLVM has hundreds of production frontends and backends. Typell has one primary consumer (PanLL) under development. The analogy describes the *design intent*, not the current ecosystem.
+
+=== Three language backends target specific database paradigms
+
+[quote, README.adoc]
+____VCL-dt++ (VeriSimDB), GQL-dt++ (LithoGlyph), KRL-dt++ (QuandleDB)____
+
+How this is implemented::
+Backend directories exist in `link:src/backends/[]`. VCL-dt++ is a port from ReScript. GPNL-dt++ bridges to Lean 4. KRL-dt++ is designed from scratch.
+
+Caveat::
+**These backends are in design/early implementation phase.** None are production-ready. The strategies described (8-modality queries, RATIONALE clause, equality saturation) are the target features, not currently shipping capabilities.
+
+=== Zig FFI provides C ABI compatibility
+
+[quote, README.adoc]
+____Zig (ffi/zig/): C ABI compatibility per hyperpolymath universal standard.____
+
+How this is implemented::
+`link:ffi/zig/[]` contains the Zig FFI layer. Auto-generated C headers live in `link:generated/abi/[]`. The hyperpolymath universal standard is documented in `link:docs/design/ABI-FFI-README.md[]`.
+
+Caveat::
+The FFI bridge is the soundness-critical layer. If the Zig FFI misrepresents the Idris 2 spec's types to the Rust kernel, soundness is lost. Integration testing across this boundary is essential and ongoing.
+
+== Dogfooded Across The Account
+
+[cols="1,2,2", options="header"]
+|===
+| Technology / Pattern | Used here | Also used in
+
+| Idris 2 formal specs
+| `src/abi/`
+| link:https://github.com/hyperpolymath/kategoria[Kategoria] (Route α)
+
+| Rust kernel
+| `src/kernel/`
+| link:https://github.com/hyperpolymath/panll[PanLL] (Tauri backend)
+
+| JSON-RPC verification protocol
+| `src/kernel/protocol/`
+| link:https://github.com/hyperpolymath/panll[PanLL] (Pane-L, Pane-N, Pane-W)
+|===
+
+== Known gaps
+
+[CAUTION]
+====
+**Phase 0: Implementation is beginning.** The architecture, specs, and directory structure exist. The running type checker, proof engine, and backends are under active development.
+====
+
+[CAUTION]
+====
+**Spec-implementation alignment is not machine-checked.** Soundness of the Rust kernel against the Idris 2 specs is a manual obligation. No extraction or certified translation tool exists yet.
+====
+
+[CAUTION]
+====
+**Backend implementations are early.** VCL-dt++, GPNL-dt++, and KRL-dt++ are in design/initial implementation. None handle production query workloads.
+====
+
+[CAUTION]
+====
+**Echidna delegation boundary is underspecified.** Typell delegates complex proofs to Echidna. The boundary between what Typell proves internally and what it delegates is not yet formally delimited.
+====
+
+== Evidence Index
+
+[cols="2,3", options="header"]
+|===
+| Path | Proves / Defines
+
+| `src/abi/`
+| Idris 2 formal specs for type system soundness
+
+| `src/kernel/checker/`
+| Bidirectional type checker (Rust, under development)
+
+| `src/kernel/proof/`
+| Proof engine (Rust, under development)
+
+| `src/kernel/session/`
+| Session protocol manager (Rust, under development)
+
+| `docs/design/DESIGN-2026-03-01-typell-vision.md`
+| Full design vision document
+
+| `docs/design/ABI-FFI-README.md`
+| ABI/FFI standard documentation
+|===
+abc def ghi jkl mno pqr stu
