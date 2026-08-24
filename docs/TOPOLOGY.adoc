@@ -1,12 +1,8 @@
-<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
-<!-- TOPOLOGY.md — Typell architecture map and completion dashboard -->
-<!-- Last updated: 2026-03-10 -->
+== Typell — Project Topology
 
-# Typell — Project Topology
+=== System Architecture
 
-## System Architecture
-
-```
+....
                     ┌──────────────────────────────────────────────────────┐
                     │          PanLL (Primary Consumer)                    │
                     │                                                      │
@@ -74,11 +70,11 @@
                     │  │Extension │  │  Tool    │  │  (GitHub Actions) │  │
                     │  └──────────┘  └──────────┘  └──────────────────┘  │
                     └─────────────────────────────────────────────────────┘
-```
+....
 
-## Completion Dashboard
+=== Completion Dashboard
 
-```
+....
 COMPONENT                            STATUS              NOTES
 ──────────────────────────────────  ──────────────────  ───────────────────────────
 FOUNDATION (Phase 0)
@@ -138,11 +134,11 @@ INTEGRATIONS (Phases 9-10)
 
 ──────────────────────────────────────────────────────────────────────────────
 OVERALL:                             ██░░░░░░░░  20%    Phase 0 complete. ABI+FFI+grammar done. Formal specs next.
-```
+....
 
-## Key Dependencies
+=== Key Dependencies
 
-```
+....
 PanLL ──────────────► Typell Kernel ──────────► Idris2 ABI (proofs)
   │                      │                         │
   │                      │                         ▼
@@ -157,11 +153,11 @@ PanLL ──────────────► Typell Kernel ────�
   ├──► VS Code ext ──► Typell Protocol (JSON-RPC)
   ├──► CLI tool ─────► Typell Protocol (JSON-RPC)
   └──► CI/CD ────────► Typell Protocol (JSON-RPC)
-```
+....
 
-## Critical Path
+=== Critical Path
 
-```
+....
 Phase 0 (DONE) ──► Phase 1 (Specs) ──► Phase 3 (Kernel) ──► Phase 9 (PanLL)
                        │                     │
                        ▼                     ▼
@@ -169,16 +165,17 @@ Phase 0 (DONE) ──► Phase 1 (Specs) ──► Phase 3 (Kernel) ──► Ph
                        │
                        ▼
                    Phase 2 (Protocol)
-```
+....
 
-## Update Protocol
+=== Update Protocol
 
 This file is maintained by both humans and AI agents. When updating:
 
-1. **After completing a component**: Change its bar and percentage
-2. **After adding a component**: Add a new row in the appropriate section
-3. **After architectural changes**: Update the ASCII diagram
-4. **Date**: Update the `Last updated` comment at the top of this file
+[arabic]
+. *After completing a component*: Change its bar and percentage
+. *After adding a component*: Add a new row in the appropriate section
+. *After architectural changes*: Update the ASCII diagram
+. *Date*: Update the `+Last updated+` comment at the top of this file
 
-Progress bars use: `█` (filled) and `░` (empty), 10 characters wide.
-Percentages: 0%, 10%, 20%, ... 100% (in 10% increments).
+Progress bars use: `+█+` (filled) and `+░+` (empty), 10 characters wide.
+Percentages: 0%, 10%, 20%, … 100% (in 10% increments).

@@ -1,14 +1,14 @@
-# SPDX-License-Identifier: CC-BY-SA-4.0
+== SPDX-License-Identifier: CC-BY-SA-4.0
 
-# integrations/ — Consumer Integrations
+== integrations/ — Consumer Integrations
 
-Typell's verification kernel is consumed by multiple tools through the
-Verification Protocol (JSON-RPC). This directory contains the integration
-code for each consumer.
+Typell’s verification kernel is consumed by multiple tools through the
+Verification Protocol (JSON-RPC). This directory contains the
+integration code for each consumer.
 
-## Structure
+=== Structure
 
-```
+....
 integrations/
 ├── panll/    # PanLL integration (PRIMARY consumer)
 │             Typell as PanLL's Pane-N reasoning engine.
@@ -27,9 +27,10 @@ integrations/
 └── ci/       # CI/CD plugins (secondary consumer)
               GitHub Actions, GitLab CI integration.
               Automated proof checking in pipelines.
-```
+....
 
-## Priority
+=== Priority
 
-PanLL is the primary consumer. All other integrations are secondary and must
-not influence architectural decisions that would complicate PanLL integration.
+PanLL is the primary consumer. All other integrations are secondary and
+must not influence architectural decisions that would complicate PanLL
+integration.
