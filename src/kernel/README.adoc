@@ -1,13 +1,14 @@
-# SPDX-License-Identifier: CC-BY-SA-4.0
+== SPDX-License-Identifier: CC-BY-SA-4.0
 
-# src/kernel/ — Rust Verification Kernel
+== src/kernel/ — Rust Verification Kernel
 
-This is Typell's core implementation in Rust. It implements the type checker,
-proof engine, effect tracker, session manager, and verification protocol server.
+This is Typell’s core implementation in Rust. It implements the type
+checker, proof engine, effect tracker, session manager, and verification
+protocol server.
 
-## Structure
+=== Structure
 
-```
+....
 kernel/
 ├── checker/      # Bidirectional type checker
 │   │             Implements: dependent, linear, affine, session, QTT,
@@ -30,21 +31,22 @@ kernel/
 └── protocol/     # Verification Protocol server (JSON-RPC)
                   The primary interface. PanLL, VS Code, CLI, and CI/CD
                   all communicate with Typell through this server.
-```
+....
 
-## Design Principles
+=== Design Principles
 
-- **Correct by construction:** Rust's type system prevents many bugs. Idris2
-  specs in `src/abi/` prove the algorithms correct.
-- **Protocol-first:** The JSON-RPC protocol server is the primary interface.
-  Everything else is internal implementation detail.
-- **Incremental:** Each type system feature can be enabled/disabled independently.
-  A consumer that only needs dependent types doesn't pay for session types.
-- **No unsafe without SAFETY comment:** Per hyperpolymath policy.
-- **No transmute unless FFI boundary:** Per hyperpolymath policy.
+* *Correct by construction:* Rust’s type system prevents many bugs.
+Idris2 specs in `+src/abi/+` prove the algorithms correct.
+* *Protocol-first:* The JSON-RPC protocol server is the primary
+interface. Everything else is internal implementation detail.
+* *Incremental:* Each type system feature can be enabled/disabled
+independently. A consumer that only needs dependent types doesn’t pay
+for session types.
+* *No unsafe without SAFETY comment:* Per hyperpolymath policy.
+* *No transmute unless FFI boundary:* Per hyperpolymath policy.
 
-## Relationship to PanLL
+=== Relationship to PanLL
 
-This kernel IS PanLL's Pane-N reasoning engine. When compiled as a Tauri plugin,
-it runs in-process with PanLL. When run as a standalone server, PanLL connects
-via JSON-RPC. Both modes use the same kernel code.
+This kernel IS PanLL’s Pane-N reasoning engine. When compiled as a Tauri
+plugin, it runs in-process with PanLL. When run as a standalone server,
+PanLL connects via JSON-RPC. Both modes use the same kernel code.

@@ -1,0 +1,42 @@
+== Maintainers
+
+This document lists the current and former maintainers of *Typell*.
+
+'''''
+
+=== Current Maintainers
+
+[width="100%",cols="24%,29%,22%,25%",options="header",]
+|===
+|Name |GitHub |Role |Since
+|Jonathan D.A. Jewell |https://github.com/hyperpolymath[@hyperpolymath]
+|BDFL |2026-03-01
+|===
+
+'''''
+
+=== How to Become a Maintainer
+
+Contributors who demonstrate sustained, high-quality contributions and a
+solid understanding of the project’s standards and goals may be
+nominated to become maintainers. The full criteria and process are
+described in GOVERNANCE.md. If you are interested, the best path is to
+start contributing consistently and engage constructively in issues and
+code reviews.
+
+'''''
+
+=== Emeritus
+
+Former maintainers who have stepped back from active maintenance. We are
+grateful for their contributions.
+
+[cols=",,,",options="header",]
+|===
+|Name |GitHub |Role |Active
+|_None yet_ | | |
+|===
+
+'''''
+
+Copyright (c) 2026 hyperpolymath. Licensed under MPL-2.0.
