@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 type: software
-title: "typell"
+title: "Typell"
 abstract: "Type-theoretic verification kernel for formally verified database queries, providing dependent, linear, session, quantitative, effect, and modal type coverage. Idris 2 formal specs, Rust verification kernel, Zig FFI bridge, JSON-RPC protocol. The \"LLVM of type safety\" for query validation."
 authors:
   - family-names: "Jewell"
